@@ -150,7 +150,7 @@ async function main() {
 
   // Safety: refuse to touch anything that is not the seeded sample event.
   const eventName = await sql(`select name from public.events where id = '${EVENT_ID}'`);
-  if (eventName !== "Gala Night") {
+  if (eventName !== "Akpo Gala Night") {
     throw new Error(
       "The seeded sample event was not found. Run `npx supabase db reset` first. " +
         "This script must never run against real data.",

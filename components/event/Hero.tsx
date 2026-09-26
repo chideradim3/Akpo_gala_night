@@ -2,6 +2,7 @@ import { ButtonLink, Container } from "@/components/ui";
 import { formatEventDate, formatEventTimeRange, formatVenue } from "@/lib/formatEvent";
 import { formatNaira } from "@/lib/money";
 import type { GalaEvent, TicketTier } from "@/lib/services/events";
+import { cn } from "@/lib/utils";
 
 /**
  * The hero, built as an invitation plate rather than a marketing banner.
@@ -14,6 +15,25 @@ import type { GalaEvent, TicketTier } from "@/lib/services/events";
  *
  * So the page opens as the invitation the guest is being handed.
  */
+
+/**
+ * A short accent segment centred on one of the framing rules.
+ *
+ * Engraved invitations pair a thick and a thin rule. Reproducing that
+ * literally would be heavy on a dark screen, so the weight is expressed as a
+ * short brighter run at the centre of an otherwise hairline rule.
+ */
+function RuleTick({ className }: { className: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "absolute left-1/2 h-px w-16 -translate-x-1/2 bg-[var(--color-accent)] sm:w-24",
+        className,
+      )}
+    />
+  );
+}
 
 function Particular({ label, value }: { label: string; value: string }) {
   return (
@@ -61,9 +81,25 @@ export function Hero({ event, tiers }: { event: GalaEvent; tiers: TicketTier[] }
 
           {/* The rules above and below the name are the invitation device.
               They are structural, not decorative: they frame the host name
-              exactly as an engraved card does. */}
-          <div className="mt-8 border-y border-[var(--color-line-strong)] py-8 sm:py-12">
-            <h1 className="text-[length:var(--text-display)] font-medium">{event.name}</h1>
+              exactly as an engraved card does.
+
+              The double rule — hairline above, hairline below, with a short
+              accent tick centred on each — is lifted from engraved
+              stationery, where a thick/thin pairing is the house style. It is
+              the one piece of ornament on the page, so it stays disciplined. */}
+          <div className="relative mt-8 border-y border-[var(--color-line-strong)] py-10 sm:py-14">
+            <RuleTick className="-top-px" />
+            <h1
+              className="text-[length:var(--text-display)] leading-[1.02] font-semibold"
+              // A Didone is engraved, not printed: at display size the
+              // hairlines should be as fine as the face allows. Bodoni Moda
+              // carries an optical-size axis that does exactly that, and it
+              // is ignored harmlessly if the axis is unavailable.
+              style={{ fontVariationSettings: '"opsz" 96', letterSpacing: "0.005em" }}
+            >
+              {event.name}
+            </h1>
+            <RuleTick className="-bottom-px" />
           </div>
 
           {event.description && (

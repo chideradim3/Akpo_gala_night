@@ -149,11 +149,11 @@ async function main() {
   console.log("\n── Unpublished content stays hidden ────────────────────────");
 
   // Hide the event, confirm it disappears for anon, then put it back.
-  await run("update public.events set status = 'DRAFT' where slug = 'gala-night'");
+  await run("update public.events set status = 'DRAFT' where slug = 'akpo-gala-night'");
   const draft = await run("select count(*) from public.events", { asAnon: true });
   report(draft.ok && draft.output === "0",
     "A DRAFT event is invisible to the public", `count ${draft.output}`);
-  await run("update public.events set status = 'PUBLISHED' where slug = 'gala-night'");
+  await run("update public.events set status = 'PUBLISHED' where slug = 'akpo-gala-night'");
 
   // Same for a deactivated tier.
   await run("update public.ticket_types set is_active = false where name = 'Standard'");
@@ -165,7 +165,7 @@ async function main() {
 
   // Leave the database as we found it.
   const restored = await run(
-    "select status from public.events where slug = 'gala-night'");
+    "select status from public.events where slug = 'akpo-gala-night'");
   report(restored.output === "PUBLISHED", "Database restored to its seeded state");
 
   console.log(`\n${"─".repeat(60)}`);

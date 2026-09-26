@@ -25,8 +25,8 @@ begin
   )
   values (
     v_event_id,
-    'Gala Night',
-    'gala-night',
+    'Akpo Gala Night',
+    'akpo-gala-night',
     'An evening of fine dining, live music and celebration. Black tie. Limited places.',
     (current_date + interval '90 days')::date,
     '19:00',
@@ -172,5 +172,5 @@ select
   (t.sale_end is not null and t.sale_end <= now()) as sale_closed
 from public.ticket_types t
 join public.events e on e.id = t.event_id
-where e.slug = 'gala-night'
+where e.slug = 'akpo-gala-night'
 order by t.sort_order;

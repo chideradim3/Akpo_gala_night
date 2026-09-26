@@ -23,9 +23,11 @@ export function SiteHeader({ event }: { event: GalaEvent }) {
     <header className="sticky top-0 z-40 border-b border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface-page)_85%,transparent)] backdrop-blur-md">
       <Container width="wide">
         <div className="flex h-16 items-center justify-between gap-4 sm:h-18">
+          {/* min-w-0 lets this shrink instead of pushing the button off the
+              edge, and the name stays on one line at any length. */}
           <a
             href="#top"
-            className="truncate text-lg font-medium [font-family:var(--font-display)] sm:text-xl"
+            className="min-w-0 truncate text-base font-semibold [font-family:var(--font-display)] sm:text-xl"
           >
             {event.name}
           </a>
