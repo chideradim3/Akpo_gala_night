@@ -1,0 +1,15 @@
+{
+  "//": "Compiles the unit tests (and the modules they import) to plain JS so Node 20's built-in test runner can execute them. Node 20 cannot run .ts directly, and this avoids adding a test-runner dependency.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".test-build",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "incremental": false,
+    "types": ["node"],
+    "plugins": []
+  },
+  "include": ["lib/money.ts", "lib/money.test.ts"]
+}

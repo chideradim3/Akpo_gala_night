@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Gala Night — design tokens
+   --------------------------------------------------------------------------
+   This file is the SINGLE source of truth for colour, radius, shadow and type
+   scale. Components never hardcode a hex value; they reference a token here.
+   If you want to restyle the whole site, you change this file and nothing else.
+   ========================================================================== */
+
+@theme {
+  /* --- Surfaces -----------------------------------------------------------
+     A near-black page with slightly lifted cards. Not pure #000 — a hint of
+     warmth/purple in the black stops the screen looking like a dead pixel
+     field and makes the accent feel like it belongs. */
+  --color-surface-page: #08070a;
+  --color-surface-raised: #111014;
+  --color-surface-overlay: #17161c;
+  --color-surface-inset: #0c0b0f;
+
+  /* --- Borders ------------------------------------------------------------
+     Hairlines, never solid greys. `strong` is for hover/focus states. */
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+
+  /* --- Text ---------------------------------------------------------------- */
+  --color-ink: #ffffff;
+  --color-ink-secondary: rgba(255, 255, 255, 0.64);
+  --color-ink-muted: rgba(255, 255, 255, 0.4);
+  --color-ink-inverse: #08070a;
+
+  /* --- Accent -------------------------------------------------------------
+     ONE accent for the whole site. Resist adding a second. The only other
+     colours allowed anywhere are the status colours below. */
+  --color-accent: #a855f7;
+  --color-accent-bright: #c084fc;
+  --color-accent-deep: #7e22ce;
+  --color-accent-soft: rgba(168, 85, 247, 0.14);
+  --color-accent-line: rgba(168, 85, 247, 0.35);
+
+  /* --- Status -------------------------------------------------------------
+     Used by admin and the check-in screens only. The check-in "VALID" and
+     "ALREADY USED" screens need a defined green and red, not an ad-hoc one. */
+  --color-success: #22c55e;
+  --color-success-soft: rgba(34, 197, 94, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft: rgba(239, 68, 68, 0.14);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+
+  /* --- Radii ---------------------------------------------------------------
+     Generously rounded. `pill` is for buttons, `card` for panels. */
+  --radius-control: 0.875rem;
+  --radius-card: 1.25rem;
+  --radius-panel: 1.75rem;
+  --radius-pill: 9999px;
+
+  /* --- Shadows / glow ------------------------------------------------------
+     The glow is what makes the dark theme feel premium rather than flat. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.6), 0 12px 32px -16px rgba(0, 0, 0, 0.9);
+  --shadow-glow: 0 0 0 1px var(--color-accent-line), 0 0 28px -6px rgba(168, 85, 247, 0.45);
+  --shadow-glow-soft: 0 0 32px -12px rgba(168, 85, 247, 0.5);
+
+  /* --- Fonts ---------------------------------------------------------------
+     Bound to next/font CSS variables in app/layout.tsx. The fallback chain
+     matters: it is what renders before the webfont loads. */
+  --font-display: var(--font-sora), "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+
+  /* --- Type scale ----------------------------------------------------------
+     Every size uses clamp() so headings shrink on a 375px phone and grow on a
+     1440px laptop WITHOUT a separate mobile override anywhere in the app.
+     This is the main reason the site is responsive by default. */
+  --text-display: clamp(2.5rem, 1.6rem + 4.2vw, 5rem);
+  --text-h1: clamp(2rem, 1.4rem + 2.8vw, 3.5rem);
+  --text-h2: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem);
+  --text-h3: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --text-body-lg: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  --text-amount: clamp(1.75rem, 1.3rem + 2vw, 2.75rem);
+
+  /* --- Motion --------------------------------------------------------------
+     Subtle and short. The spec says no excessive animation. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html {
+  /* NOTE: deliberately no `overflow-x: hidden`. Horizontal overflow is a bug
+     to find and fix, not to hide — hiding it makes it invisible in review and
+     it resurfaces as a broken layout on a real phone. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-surface-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A faint grid, barely visible — it gives the black depth without being a
+   "cheap gradient". Pinned to the viewport so it never causes scroll. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 100% 60% at 50% 0%, #000 20%, transparent 78%);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+/* Visible, on-brand focus ring everywhere — accessibility, not decoration. */
+:focus-visible {
+  outline: 2px solid var(--color-accent-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+/* Tabular figures — money must not jitter as digits change. Used by every
+   price, total and admin metric. */
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Small uppercase label, as seen on the stepper and field labels. */
+@utility eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+@utility glow-accent {
+  box-shadow: var(--shadow-glow);
+}
