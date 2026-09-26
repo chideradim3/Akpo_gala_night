@@ -16,8 +16,10 @@ import "server-only";
  *   4  order creation + atomic inventory reservation
  *   5  confirmOrderPayment / issueTickets
  *   6  resending tickets
- *   7+ admin pages, after verifying the caller has an `admins` row
- *   9  check-in
+ *   7+ admin pages, after `requireAdmin()` (lib/auth) has passed
+ *
+ * The payment developer's /admin/check-in page will be another caller. It is
+ * held to the same rule: `requireAdmin('staff')` first, then this client.
  */
 // Phase 2 wires this up:
 //   import { createClient } from "@supabase/supabase-js";

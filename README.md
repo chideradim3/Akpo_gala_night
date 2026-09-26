@@ -1,7 +1,9 @@
 # Gala Night — ticketing
 
-A ticket sales website for a Gala Night in Nigeria, with an admin dashboard and a venue check-in
-tool. Currency is Naira (₦).
+A ticket sales website for a Gala Night in Nigeria, with an admin dashboard. Currency is Naira (₦).
+
+Payment integration and the venue check-in page are built separately by the payment developer —
+see [What this repository does NOT build](#what-this-repository-does-not-build).
 
 **Current status: Phase 1 complete** — project setup and design system. There is no database, no
 checkout and no payment code yet. See [Phases](#phases) below.
@@ -98,7 +100,8 @@ app/
   payment/return/        "confirming your payment…"      (Phase 5)
   tickets/[accessToken]/ the buyer's tickets             (Phase 5)
   find-tickets/          lost-ticket recovery            (Phase 6)
-  admin/                 dashboard and check-in          (Phases 7–9)
+  admin/                 dashboard, orders, attendees    (Phases 7–8)
+    check-in/            placeholder — the payment developer builds this
   api/                   route handlers                  (Phase 5+)
   dev/                   mock payment simulator          (Phase 5)
 components/
@@ -109,7 +112,9 @@ lib/
   env.ts                 environment variables, validated with Zod
   utils.ts               cn(), noindexMetadata(), devRoutesEnabled()
   supabase/              server / browser / admin clients
+  auth/                  requireAdmin(role) access check  (Phase 7)
   services/              business logic                  (Phase 2+)
+    payment/             the payment boundary            (Phase 5)
   validation/            Zod schemas                     (Phase 4+)
 types/
 supabase/migrations/     database schema                 (Phase 2)
@@ -131,13 +136,28 @@ Supabase setup is written out step by step in [SUPABASE_SETUP.md](SUPABASE_SETUP
 
 ---
 
-## Payments
+## What this repository does NOT build
 
-Payment provider integration is **not** built here — it is the payment developer's work, behind two
-small contracts documented in [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md).
+Two pieces are the payment developer's work. Both live behind documented boundaries so neither
+needs changes to the code here.
+
+**1. Payment provider integration** — see [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md).
 
 The single most important rule: **only `POST /api/payments/confirm` can mark an order `PAID`.** No
 page, button or redirect may do it. The payment return page is read-only.
+
+Do not install Paystack, Stripe, Flutterwave or any other provider SDK.
+
+**2. The venue check-in page and QR scanner** at `/admin/check-in` — see
+`CHECK_IN_INTEGRATION.md` (written in Phase 10).
+
+We *do* build everything it depends on: the `tickets` table with `qr_token`, `ticket_code`,
+`status`, `checked_in_at` and `checked_in_by`; the `requireAdmin('staff')` helper it protects
+itself with; the status colour tokens its pass/fail screens use; and `camera=(self)` in the
+Permissions-Policy header so its scanner can open the camera at all.
+
+Note that we still **generate** QR codes — the buyer's ticket page needs the image. We just do not
+build the thing that reads them.
 
 ---
 
@@ -155,7 +175,7 @@ Each phase stops for review before the next one starts.
 | 6 | Email delivery, find-tickets | |
 | 7 | Admin auth with 2FA, overview dashboard | |
 | 8 | Admin ticket types, orders, attendees, settings, CSV export | |
-| 9 | Check-in scanner | |
-| 10 | Security review, responsive polish, full docs | |
+| 9 | Security review and responsive polish | |
+| 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | |
 
 The full specification is in [`gala_prompt.MD`](gala_prompt.MD).

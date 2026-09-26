@@ -1,6 +1,6 @@
 # Gala Night Ticketing Website — Build Instructions
 
-Build a production-quality ticket sales website for a Gala Night in Nigeria (currency: Naira), plus an admin dashboard and venue check-in tool.
+Build a production-quality ticket sales website for a Gala Night in Nigeria (currency: Naira), plus an admin dashboard. The venue check-in tool is built later by the payment developer, so prepare the ground for it (section 10).
 
 Reference screenshots of the ticket flow I want are in `/reference` in this project. Use them ONLY for UX, layout, spacing, visual hierarchy and the checkout structure. Do NOT copy the reference brand's name, logo, text, images or assets. The site must have its own original Gala Night identity.
 
@@ -15,13 +15,15 @@ Reference screenshots of the ticket flow I want are in `/reference` in this proj
 - Database, migrations and Row Level Security
 - Order creation and ticket issuance (generating ticket codes and QR tokens)
 - Ticket delivery pages and email (buyer sees and recovers their tickets)
-- Admin dashboard, admin login, and venue check-in
+- Admin dashboard and admin login
+- The database fields and documentation the check-in tool will need (but NOT the check-in tool itself)
 - A clean, documented boundary for the payment developer
 
 **The payment developer builds (do NOT build this):**
 - Payment provider integration (Providus Bank or other), initialisation, verification, webhooks, callbacks, payment secrets
+- The venue check-in page (QR scanner at the gate)
 
-Do NOT install or configure Paystack, Stripe, Flutterwave or any payment provider.
+Do NOT install or configure Paystack, Stripe, Flutterwave or any payment provider. Do NOT build the check-in page or a QR scanner.
 
 ---
 
@@ -54,12 +56,14 @@ app/
   payment/return/               "confirming your payment…" page
   tickets/[accessToken]/        buyer's ticket page
   find-tickets/                 lost-ticket recovery
-  admin/                        dashboard, orders, attendees, ticket types, event settings, check-in
+  admin/                        dashboard, orders, attendees, ticket types, event settings
+                                (the payment developer will add admin/check-in/ later)
   api/                          route handlers
 components/  ui/ event/ tickets/ checkout/ admin/
 lib/
   supabase/                     server client, browser client (anon key only)
-  services/  events.ts tickets.ts orders.ts attendees.ts issuance.ts checkIn.ts payment.ts notifications.ts
+  services/  events.ts tickets.ts orders.ts attendees.ts issuance.ts payment/ notifications.ts
+  auth/                         requireAdmin(role) helper, reusable by any future admin page
   validation/                   Zod schemas
   money.ts                      kobo ⇄ Naira helpers
 types/
@@ -88,7 +92,7 @@ All money columns are `integer` kobo. Use Postgres enums for statuses.
 
 **admins** — user_id (references auth.users), role (`owner` | `staff`), created_at. Rows are added by hand in Supabase. There is NO public admin sign-up.
 
-**audit_log** — id, actor (admin user id or 'system' or 'payment'), action, details (jsonb), created_at. Insert-only. Record: order paid, tickets issued, check-ins, ticket type changes, event setting changes, CSV exports.
+**audit_log** — id, actor (admin user id or 'system' or 'payment'), action, details (jsonb), created_at. Insert-only. Record: order paid, tickets issued, check-ins (written later by the check-in tool), ticket type changes, event setting changes, CSV exports.
 
 The payment developer may add their own `payments` / `payment_attempts` tables later; nothing in the core schema should need to change for that.
 
@@ -190,7 +194,7 @@ Resending (from `/find-tickets` or admin) sends the SAME tickets. It never creat
 
 ## 10. Admin
 
-**Auth:** Supabase Auth email + password + **mandatory 2FA (TOTP)**. Access requires a row in `admins`. Check on the server for every admin route and action — never rely on hiding UI. `owner` can edit settings and export; `staff` can only use check-in and view.
+**Auth:** Supabase Auth email + password + **mandatory 2FA (TOTP)**. Access requires a row in `admins`. Check on the server for every admin route and action — never rely on hiding UI. `owner` can edit settings and export; `staff` can only view (and will use check-in once it exists). Put the access check in one reusable helper, `requireAdmin(role)`, so the payment developer's check-in page protects itself the same way.
 
 **Overview:** tickets sold (by type and total), people admitted count, tickets remaining per type, total orders, paid orders, pending orders, total revenue (sum of `PAID` orders only), revenue per ticket type, sales per day chart.
 
@@ -202,11 +206,11 @@ Resending (from `/find-tickets` or admin) sends the SAME tickets. It never creat
 
 **Event settings (owner):** all `events` fields including gallery images, FAQ, dress code, contact info.
 
-**Check-in (`/admin/check-in`, staff and owner):** phone camera QR scanner plus manual ticket-code entry. Server function `checkInTicket(qrTokenOrCode)` does a single atomic `UPDATE tickets SET status='USED' … WHERE status='ACTIVE' RETURNING …` and responds:
-- **VALID** — guest name, ticket type, admits N (big green screen)
-- **ALREADY USED** — with the time it was used (big red screen)
-- **INVALID** (big red screen)
-Also a search by phone/name for guests whose phone died.
+**Check-in — NOT built by me.** The payment developer will build it. Prepare for it only:
+- The `tickets` table already has `qr_token`, `ticket_code`, `status`, `checked_in_at`, `checked_in_by`.
+- The Attendees and Orders pages show each ticket's status (Active / Used / Cancelled) and check-in time, so they will update automatically once check-in exists.
+- Leave a "Check-in (coming soon)" item in the admin menu pointing to `/admin/check-in`, which currently shows a placeholder page.
+- Write **CHECK_IN_INTEGRATION.md** (section 13).
 
 ---
 
@@ -223,8 +227,8 @@ Also a search by phone/name for guests whose phone died.
 
 ## 12. Errors and loading states
 
-Handle: invalid form data, sold out, quantity over limit, sales not open, order creation failure, payment start failure, payment failed/expired, invalid ticket, already checked in, unauthorised admin.
-Show skeletons/spinners for: event, ticket types, order creation, admin tables, scanning.
+Handle: invalid form data, sold out, quantity over limit, sales not open, order creation failure, payment start failure, payment failed/expired, unauthorised admin.
+Show skeletons/spinners for: event, ticket types, order creation, admin tables.
 
 Mobile-first; test at 375, 390, 430, 768, 1024, 1440px. No horizontal scrolling.
 
@@ -234,6 +238,7 @@ Mobile-first; test at 375, 390, 430, 768, 1024, 1440px. No horizontal scrolling.
 
 - **README.md** — architecture, env vars, Supabase setup, migrations, local dev, how to create the first admin, how to test with the mock payment and `simulate-payment` script.
 - **PAYMENT_INTEGRATION.md** — for the payment developer: the `PaymentService` interface to implement, the `/api/payments/confirm` contract (fields, signature, idempotency, expected responses), order statuses, what the return page expects, what they must NOT change, and a full example flow.
+- **CHECK_IN_INTEGRATION.md** — for the payment developer's check-in page: what the QR code contains (the `qr_token` only), the `tickets` fields and statuses, how to protect the page with `requireAdmin('staff')`, and the exact rule for checking a ticket in: one atomic `UPDATE tickets SET status='USED', checked_in_at=now(), checked_in_by=<admin> WHERE (qr_token=$1 OR ticket_code=$1) AND status='ACTIVE' RETURNING …` so the same ticket can never be used twice; results VALID (show guest name, ticket type, admits N) / ALREADY USED (show time) / INVALID; write an audit_log row per check-in; and a manual search by name/phone for guests whose phone died.
 - `.env.example` with every variable (no real values).
 
 ---
@@ -248,7 +253,7 @@ Mobile-first; test at 375, 390, 430, 768, 1024, 1440px. No horizontal scrolling.
 6. Email delivery + `/find-tickets`
 7. Admin auth with 2FA + overview dashboard
 8. Admin ticket types, orders, attendees, event settings, CSV export, audit log
-9. Check-in scanner
-10. Security review, responsive polish, README and PAYMENT_INTEGRATION.md, final test run
+9. Security review and responsive polish
+10. README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run
 
 Before Phase 1, read this whole document, look at the screenshots, and give me a short plain-English summary of the architecture and any questions. Do not write code until I reply.

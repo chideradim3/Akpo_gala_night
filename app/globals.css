@@ -39,8 +39,10 @@
   --color-accent-line: rgba(168, 85, 247, 0.35);
 
   /* --- Status -------------------------------------------------------------
-     Used by admin and the check-in screens only. The check-in "VALID" and
-     "ALREADY USED" screens need a defined green and red, not an ad-hoc one. */
+     Order and ticket statuses in the admin, and nothing else on the public
+     site. Defined here rather than ad hoc so the payment developer's
+     /admin/check-in page has an agreed green and red to build its VALID and
+     ALREADY USED screens from. See CHECK_IN_INTEGRATION.md. */
   --color-success: #22c55e;
   --color-success-soft: rgba(34, 197, 94, 0.14);
   --color-danger: #ef4444;

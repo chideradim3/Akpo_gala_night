@@ -10,10 +10,15 @@
 
 | Built by us | Built by the payment developer |
 |---|---|
-| Checkout, order creation, ticket issuance, emails, admin, check-in | Everything that touches the payment provider (Providus Bank or other) |
+| Checkout, order creation, ticket issuance, emails, admin dashboard | Payment provider integration (Providus Bank or other) |
+| The `tickets` table, `requireAdmin()`, the admin shell | The venue check-in page and QR scanner at `/admin/check-in` |
 
 No payment provider SDK is installed in this repository, and none should be. The payment
 developer's code lives behind two small contracts.
+
+> **The check-in page is covered separately** in
+> [CHECK_IN_INTEGRATION.md](CHECK_IN_INTEGRATION.md). It shares nothing with the payment contracts
+> below except the `requireAdmin()` helper.
 
 ## Contract 1 — outgoing: starting a payment
 
@@ -64,4 +69,4 @@ order status and displays it, nothing more.
 ---
 
 *Full field tables, worked examples, error responses and a test script
-(`scripts/simulate-payment.ts`) land in Phase 5.*
+(`scripts/simulate-payment.ts`) land in Phase 5. The check-in guide lands in Phase 10.*

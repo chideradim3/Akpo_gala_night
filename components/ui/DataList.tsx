@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
  *   below `lg` : one Card per row, each column as a label/value pair
  *   `lg` and up: a real <table> with a sticky header
  *
- * Every admin screen in Phases 7–9 uses this, which is why those screens are
- * responsive by default instead of each one re-solving the same problem.
+ * Every admin screen in Phases 7–8 uses this, which is why those screens are
+ * responsive by default instead of each one re-solving the same problem. The
+ * payment developer's check-in page can use it too.
  *
  * Both layouts come from the SAME `columns` definition, so they can never
  * drift apart.

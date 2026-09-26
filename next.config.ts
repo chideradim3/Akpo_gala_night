@@ -34,8 +34,13 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    // Camera is allowed on our own origin ONLY because /admin/check-in needs
-    // the QR scanner (Phase 9). Everything else is switched off.
+    // Camera stays allowed on our OWN origin, and only ours.
+    //
+    // We do not build the QR scanner — the payment developer does (spec §1) —
+    // but their /admin/check-in page will run on this domain, so this header
+    // governs it. Setting `camera=()` here would make their scanner fail with
+    // no useful error, and nobody would find out until the door on the night.
+    // Documented for them in CHECK_IN_INTEGRATION.md.
     value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "on" },

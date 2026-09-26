@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
  * the quantities so it can compute a total and cap the order — this component
  * only reports intent.
  *
- * Both buttons are 44×44 CSS pixels. That is the accessibility minimum for a
- * touch target, and it matters here more than anywhere else on the site: this
- * is the control a buyer taps repeatedly on a phone, and an undersized − is
- * how someone accidentally buys two VIP tables.
+ * Both buttons are 44×44 CSS pixels — the accessibility minimum for a touch
+ * target. It matters here more than anywhere else on the site: this is the
+ * control a buyer taps repeatedly on a phone, and an undersized − is how
+ * someone accidentally buys two VIP tables.
  */
 
 export function QuantitySelector({
