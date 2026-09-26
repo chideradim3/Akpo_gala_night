@@ -13,6 +13,15 @@ import { Button, Checkbox, Input } from "@/components/ui";
  * The form validates on submit, not on every keystroke. Telling someone
  * their email is invalid while they are still typing the second character
  * is noise, and it trains people to ignore the messages.
+ *
+ * NATIVE VALIDATION IS LEFT ON DELIBERATELY (no `noValidate`).
+ *
+ * React's checks are the nicer ones and normally run first, but they only
+ * exist once the page has hydrated. If the JavaScript ever fails to load,
+ * a form with `noValidate` degrades into one that accepts anything and
+ * submits it — which is exactly what happened when Next.js blocked its dev
+ * chunks over a LAN address. The browser's own `required` and `type=email`
+ * checks cost nothing and hold that line whatever else breaks.
  */
 
 export type GuestDetailsValues = {
@@ -36,7 +45,6 @@ export function GuestDetailsStep({
 }) {
   return (
     <form
-      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         onSubmit();
@@ -102,6 +110,11 @@ export function GuestDetailsStep({
           autoComplete="tel"
           inputMode="tel"
           required
+          // Deliberately loose — the authoritative check is
+          // normalizeNigerianPhone, in React and again on the server. This
+          // only has to stop obvious rubbish when JavaScript is unavailable.
+          pattern="[0-9+()\-\s]{10,20}"
+          title="A Nigerian mobile number, e.g. 08012345678"
           value={values.phone}
           error={errors["details.phone"]}
           hint="In case we need to reach you on the night."

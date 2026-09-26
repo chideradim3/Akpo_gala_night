@@ -1,4 +1,29 @@
+import { networkInterfaces } from "node:os";
+
 import type { NextConfig } from "next";
+
+/**
+ * Every LAN address this machine answers on, e.g. ["172.20.10.5"].
+ *
+ * Next 16 refuses to serve dev resources — the JavaScript chunks included —
+ * to an origin it does not recognise, and returns 403. Opening the dev
+ * server on a phone at http://192.168.x.x:3000 therefore loads the HTML and
+ * the CSS but no JavaScript, so nothing hydrates: forms submit as plain
+ * HTML, client validation never runs, and buttons appear to do nothing.
+ *
+ * Detecting the addresses rather than hardcoding one means this keeps
+ * working when the laptop moves between networks or the router hands out a
+ * different address.
+ */
+function localNetworkOrigins(): string[] {
+  const addresses: string[] = [];
+  for (const entries of Object.values(networkInterfaces())) {
+    for (const entry of entries ?? []) {
+      if (entry.family === "IPv4" && !entry.internal) addresses.push(entry.address);
+    }
+  }
+  return addresses;
+}
 
 /**
  * Security headers (spec §11).
@@ -71,6 +96,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Development only, and only this machine's own LAN addresses — so testing
+  // on a real phone works, without opening the dev server to anything else.
+  // Has no effect on a production build.
+  ...(isDev ? { allowedDevOrigins: localNetworkOrigins() } : {}),
+
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
