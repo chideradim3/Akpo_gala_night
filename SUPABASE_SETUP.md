@@ -87,14 +87,68 @@ If a key is missing or wrong once Phase 2 lands, you will get a plain-English me
 
 ---
 
+## 6. Add the database connection string
+
+The three keys above let the *application* talk to Supabase. Creating the tables needs a direct
+database connection as well, which uses your database password rather than a key.
+
+1. In the Supabase dashboard, click **Connect** at the top of the page.
+2. Choose the **Session pooler** tab.
+
+   > Not "Direct connection". On new projects that address is IPv6-only, and most home and office
+   > networks in Nigeria are IPv4 — it will just hang and time out.
+
+3. Copy the string. It looks like:
+
+   ```
+   postgresql://postgres.abcdefghijklm:[YOUR-PASSWORD]@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+   ```
+
+4. Replace `[YOUR-PASSWORD]` (including the square brackets) with the database password you saved
+   in step 2.
+5. Add it to `.env.local`:
+
+   ```
+   SUPABASE_DB_URL=postgresql://postgres.abcdefghijklm:yourpassword@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+   ```
+
+If your password contains `@`, `:`, `/`, `?`, `#` or `%`, it has to be percent-encoded or the URL
+will be parsed wrongly. The simplest fix is to reset the database password (Settings → Database →
+Reset database password) and let Supabase generate one.
+
+This variable is used **only** by the Supabase CLI when applying migrations. The application itself
+never reads it.
+
+---
+
+## 7. Create the tables
+
+```bash
+npm run db:push        # applies every migration in supabase/migrations, in order
+npm run db:seed        # adds the clearly-marked sample event and ticket tiers
+```
+
+`db:push` remembers which migrations it has already applied, so it is safe to run again after a
+later phase adds more.
+
+To check it worked, paste `supabase/verify.sql` into the dashboard SQL editor. All eight checks
+should print PASS.
+
+### Optional: enable pg_cron
+
+One check will say SKIPPED unless pg_cron is on. It marks abandoned checkouts as expired.
+
+Dashboard → Database → Extensions → search `pg_cron` → enable. Then re-run `npm run db:push`.
+
+This is genuinely optional. Availability is calculated live and already ignores expired holds, so
+tickets sell correctly without it — only the admin's status column goes stale.
+
+---
+
 ## Later phases
 
-These are listed so you know what is coming; do not do them yet.
-
-- **Phase 2** — install the Supabase CLI, run the migrations that create the tables, and turn on
-  Row Level Security.
 - **Phase 7** — create the first admin by adding a row to the `admins` table by hand in the
   Supabase table editor. There is deliberately no public admin sign-up.
-- **Deployment** — the same three variables go into Vercel under Project Settings → Environment
-  Variables. Use a **separate Supabase project** for production so test orders never mix with real
-  ones.
+- **Deployment** — the three application variables go into Vercel under Project Settings →
+  Environment Variables. `SUPABASE_DB_URL` does **not** — it is a local tool credential.
+  Use a **separate Supabase project** for production so test orders never mix with real ones.
