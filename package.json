@@ -13,7 +13,9 @@
     "db:seed": "supabase db push --include-seed",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --linked > types/database.ts",
-    "db:diff": "supabase db diff"
+    "db:diff": "supabase db diff",
+    "test:db": "node scripts/test-inventory-race.mjs && node scripts/test-rls.mjs",
+    "test:all": "npm test && npm run test:db"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

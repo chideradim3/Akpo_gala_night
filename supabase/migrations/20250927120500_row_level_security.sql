@@ -27,10 +27,25 @@ alter table public.tickets      enable row level security;
 alter table public.admins       enable row level security;
 alter table public.audit_log    enable row level security;
 
--- Belt and braces: even if a policy were added by mistake later, the anon
--- role has no table-level write grant to fall back on.
+-- ── Defence in depth: remove the grants as well as relying on policies ─────
+--
+-- RLS and GRANTs are two independent locks. RLS alone is enough *today*, but
+-- it fails quietly: an UPDATE the policies forbid reports "UPDATE 0" rather
+-- than an error, so a mistakenly permissive policy added in a later phase
+-- would silently start working and nothing would flag it.
+--
+-- Removing the grant makes the same attempt a hard "permission denied",
+-- which is both safer and far louder if anything regresses.
+
+-- Tables the public has no business touching at all.
 revoke all on public.attendees, public.orders, public.order_items,
               public.tickets, public.admins, public.audit_log
+  from anon, authenticated;
+
+-- events and ticket_types are READ-only for the public. Keep select, drop
+-- every way of writing them — a price is the last thing a stranger should
+-- be able to edit.
+revoke insert, update, delete, truncate on public.events, public.ticket_types
   from anon, authenticated;
 
 
