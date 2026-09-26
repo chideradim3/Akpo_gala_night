@@ -5,8 +5,9 @@ A ticket sales website for a Gala Night in Nigeria, with an admin dashboard. Cur
 Payment integration and the venue check-in page are built separately by the payment developer —
 see [What this repository does NOT build](#what-this-repository-does-not-build).
 
-**Current status: Phase 1 complete** — project setup and design system. There is no database, no
-checkout and no payment code yet. See [Phases](#phases) below.
+**Current status: Phase 2 complete** — the database is live. Schema, Row Level Security and the
+atomic inventory reservation are applied and verified against the hosted Supabase project. There
+is no checkout UI and no payment code yet. See [Phases](#phases) below.
 
 ---
 
@@ -60,6 +61,10 @@ Then open <http://localhost:3000>.
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm test` | Unit tests (compiles TS, then Node's built-in test runner) |
+| `npm run db:push` | Apply database migrations |
+| `npm run db:seed` | Apply the sample event |
+| `npm run db:status` | Show which migrations are applied |
+| `npm run test:db` | Inventory race + RLS tests (needs local Supabase) |
 
 ### Seeing it on your phone
 
@@ -168,8 +173,8 @@ Each phase stops for review before the next one starts.
 | | Phase | Status |
 |---|---|---|
 | 1 | Project setup, design system, folder structure | ✅ done |
-| 2 | Database migrations, RLS, seed data | next |
-| 3 | Landing page from Supabase | |
+| 2 | Database migrations, RLS, seed data | ✅ done |
+| 3 | Landing page from Supabase | next |
 | 4 | Checkout steps 1–2, order creation with atomic inventory reservation | |
 | 5 | Payment boundary, ticket issuance, ticket pages | |
 | 6 | Email delivery, find-tickets | |

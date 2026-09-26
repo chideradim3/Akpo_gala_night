@@ -64,6 +64,36 @@ async function findDbContainer() {
 let container;
 
 /**
+ * Where to run: the local Supabase container by default, or a remote database
+ * when GALA_TEST_DB_URL is set.
+ *
+ *   node scripts/test-inventory-race.mjs
+ *   GALA_TEST_DB_URL="postgresql://…" node scripts/test-inventory-race.mjs
+ *
+ * Running it remotely is worth doing ONCE against a project that holds only
+ * sample data, because it proves the row lock survives the connection pooler
+ * — a session pooler keeps one server connection per client session, so
+ * FOR UPDATE holds, but that is an assumption worth testing rather than
+ * trusting. Never point it at a project with real orders in it: it creates
+ * and deletes orders for the sample event.
+ */
+const REMOTE_URL = process.env.GALA_TEST_DB_URL;
+
+/** psql argv, either inside the local container or against a remote URL. */
+function psqlCommand(extraArgs) {
+  const common = ["-t", "-A", "-F", "|", "-v", "VERBOSITY=verbose", ...extraArgs];
+  return REMOTE_URL
+    ? ["run", "--rm", "-i", "-e", `PGURL=${REMOTE_URL}`, "postgres:17-alpine",
+       "sh", "-c", `psql "$PGURL" ${common.map(quote).join(" ")}`]
+    : ["exec", "-i", container, "psql", "-U", "postgres", "-d", "postgres", ...common];
+}
+
+/** Single-quote for the `sh -c` wrapper used in remote mode. */
+function quote(arg) {
+  return `'${String(arg).replace(/'/g, `'\\''`)}'`;
+}
+
+/**
  * psql prints a command tag after a write — "INSERT 0 1", "UPDATE 3" — on its
  * own line, even in tuples-only mode. Left in, it gets concatenated onto the
  * value we actually asked for and the next query receives a malformed UUID.
@@ -81,20 +111,13 @@ function stripCommandTags(output) {
 /** Run SQL and return the result rows. Throws with the Postgres error text. */
 async function sql(statement) {
   try {
-    const { stdout } = await exec(
-      "docker",
-      [
-        "exec", "-i", container,
-        "psql", "-U", "postgres", "-d", "postgres",
-        "-t", "-A", "-F", "|",
-        // Without this, psql prints the error MESSAGE but not its SQLSTATE,
-        // and these tests assert on the code (GN001…GN005) because that is
-        // what lib/services/orders.ts will branch on — not on wording.
-        "-v", "VERBOSITY=verbose",
-        "-c", statement,
-      ],
-      { maxBuffer: 10 * 1024 * 1024 },
-    );
+    // VERBOSITY=verbose (set inside psqlCommand) is what makes psql print the
+    // SQLSTATE as well as the message. These tests assert on the code
+    // (GN001…GN005), because that is what lib/services/orders.ts will branch
+    // on — not on the wording, which may well change.
+    const { stdout } = await exec("docker", psqlCommand(["-c", statement]), {
+      maxBuffer: 10 * 1024 * 1024,
+    });
     return stripCommandTags(stdout);
   } catch (error) {
     const message = String(error.stderr || error.message).trim();
@@ -114,8 +137,16 @@ async function trySql(statement) {
 /* ── The test ───────────────────────────────────────────────────────────── */
 
 async function main() {
-  container = await findDbContainer();
-  console.log(`\nUsing local database container: ${container}\n`);
+  if (REMOTE_URL) {
+    console.log(
+      "\nRunning against a REMOTE database (GALA_TEST_DB_URL).\n" +
+        "This creates and deletes orders for the sample event — never point it\n" +
+        "at a project that holds real sales.\n",
+    );
+  } else {
+    container = await findDbContainer();
+    console.log(`\nUsing local database container: ${container}\n`);
+  }
 
   // Safety: refuse to touch anything that is not the seeded sample event.
   const eventName = await sql(`select name from public.events where id = '${EVENT_ID}'`);
