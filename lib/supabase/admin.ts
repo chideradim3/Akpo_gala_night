@@ -1,5 +1,10 @@
 import "server-only";
 
+import { createClient } from "@supabase/supabase-js";
+
+import { requireServiceRoleKey, requireSupabaseEnv } from "@/lib/env";
+import type { Database } from "@/types/database";
+
 /**
  * SERVICE-ROLE Supabase client — BYPASSES ROW LEVEL SECURITY ENTIRELY.
  *
@@ -10,7 +15,8 @@ import "server-only";
  * ─────────────────────────────────────────────────────────────────────────
  *
  * Every caller must do its own authorisation check FIRST. This client has no
- * opinion about who is asking — it will happily read or write anything.
+ * opinion about who is asking — it will happily read or write anything. RLS
+ * is not protecting you here; your own code is the only thing that is.
  *
  * Legitimate callers, by phase:
  *   4  order creation + atomic inventory reservation
@@ -21,12 +27,22 @@ import "server-only";
  * The payment developer's /admin/check-in page will be another caller. It is
  * held to the same rule: `requireAdmin('staff')` first, then this client.
  */
-// Phase 2 wires this up:
-//   import { createClient } from "@supabase/supabase-js";
-//   import { requireServiceRoleKey, requireSupabaseEnv } from "@/lib/env";
 
-export function createAdminSupabaseClient(): never {
-  throw new Error(
-    "Supabase is not wired up yet — this lands in Phase 2 (database migrations & RLS).",
-  );
+let client: ReturnType<typeof createClient<Database>> | undefined;
+
+export function createAdminSupabaseClient() {
+  const { url } = requireSupabaseEnv();
+  const serviceRoleKey = requireServiceRoleKey();
+
+  client ??= createClient<Database>(url, serviceRoleKey, {
+    auth: {
+      // There is no user here and no browser to persist to. Without these the
+      // client tries to manage a session it does not have.
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  return client;
 }

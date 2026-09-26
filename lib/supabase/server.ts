@@ -1,23 +1,44 @@
 import "server-only";
 
-/**
- * Server Supabase client — anon key, but running on the server with the
- * signed-in user's session attached (used by admin pages from Phase 7).
- *
- * Still subject to Row Level Security. For work that must bypass RLS — issuing
- * tickets, reading every order — use `lib/supabase/admin.ts` instead, and only
- * behind a server-side permission check.
- *
- * The `server-only` import above means importing this from a "use client"
- * component is a BUILD ERROR, not a runtime surprise.
- */
-// Phase 2 wires this up:
-//   import { createServerClient } from "@supabase/ssr";
-//   import { cookies } from "next/headers";
-//   import { requireSupabaseEnv } from "@/lib/env";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
-export function createServerSupabaseClient(): never {
-  throw new Error(
-    "Supabase is not wired up yet — this lands in Phase 2 (database migrations & RLS).",
-  );
+import { requireSupabaseEnv } from "@/lib/env";
+import type { Database } from "@/types/database";
+
+/**
+ * Server Supabase client — anon key, carrying the signed-in user's session.
+ *
+ * Use this when the answer should depend on *who is asking*: the admin login
+ * flow and session handling from Phase 7.
+ *
+ * It is still subject to Row Level Security, which is the point. For work
+ * that must see everything — reading any order, issuing tickets — use
+ * `lib/supabase/admin.ts` instead, and only after an authorisation check.
+ *
+ * The `server-only` import makes importing this from a "use client"
+ * component a BUILD ERROR rather than a runtime surprise.
+ */
+export async function createServerSupabaseClient() {
+  const { url, anonKey } = requireSupabaseEnv();
+  const cookieStore = await cookies();
+
+  return createServerClient<Database>(url, anonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          for (const { name, value, options } of cookiesToSet) {
+            cookieStore.set(name, value, options);
+          }
+        } catch {
+          // Server Components cannot set cookies. That is expected and fine:
+          // session refresh happens in route handlers and server actions,
+          // which can. Swallowing it here keeps pages from crashing.
+        }
+      },
+    },
+  });
 }
