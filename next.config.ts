@@ -24,7 +24,17 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
-  "upgrade-insecure-requests",
+
+  // PRODUCTION ONLY. This directive tells the browser to rewrite every
+  // http:// subresource request to https://.
+  //
+  // In development that breaks the site the moment you open it on anything
+  // other than localhost. Browsers treat localhost as a secure context and
+  // leave it alone, but `http://192.168.x.x:3000` — how you view the site on
+  // a real phone — is not, so the browser upgrades the CSS and JS requests to
+  // https://192.168.x.x:3000, there is no TLS on the dev server, every
+  // request fails, and the page renders as unstyled HTML.
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
 const securityHeaders = [
@@ -44,10 +54,20 @@ const securityHeaders = [
     value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=()",
   },
   { key: "X-DNS-Prefetch-Control", value: "on" },
-  {
-    key: "Strict-Transport-Security",
-    value: "max-age=63072000; includeSubDomains; preload",
-  },
+
+  // PRODUCTION ONLY, for the same reason as upgrade-insecure-requests.
+  // A browser ignores HSTS over plain http, but if you ever do open the dev
+  // server over https once, this header would pin the browser to https for
+  // that host for two years — including `localhost`, which then breaks every
+  // other project you run on it. Not worth the risk for zero dev benefit.
+  ...(isDev
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains; preload",
+        },
+      ]),
 ];
 
 const nextConfig: NextConfig = {
