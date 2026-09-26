@@ -1,69 +1,98 @@
-import { Badge, ButtonLink, Container } from "@/components/ui";
-import { formatNaira } from "@/lib/money";
-import { placeholderEvent, placeholderTicketTypes } from "@/lib/placeholderEvent";
+import type { Metadata } from "next";
+
+import { About } from "@/components/event/About";
+import { Contact } from "@/components/event/Contact";
+import { DressCode } from "@/components/event/DressCode";
+import { Faq } from "@/components/event/Faq";
+import { Gallery } from "@/components/event/Gallery";
+import { Hero } from "@/components/event/Hero";
+import { Programme } from "@/components/event/Programme";
+import { SectionRule } from "@/components/event/Section";
+import { SiteFooter } from "@/components/event/SiteFooter";
+import { SiteHeader } from "@/components/event/SiteHeader";
+import { TicketsPreview } from "@/components/event/TicketsPreview";
+import { Container, EmptyState } from "@/components/ui";
+import { formatEventDate, formatVenue } from "@/lib/formatEvent";
+import { getEventWithTiers } from "@/lib/services/events";
 
 /**
- * PHASE 1 PLACEHOLDER HERO.
+ * The landing page.
  *
- * Its only job is to prove the design tokens, fonts and Container widths work
- * on a real page. Phase 3 replaces this file with the full landing page
- * (Hero · About · Experience · Gallery · Tickets · Dress code · FAQ · Contact
- * · Footer), all of it read from the `events` table so the admin can edit it.
+ * A server component: it reads the event once, on the server, and sends
+ * finished HTML. Nothing here ships to the browser, and no database query
+ * lives in a component (spec §4) — `getEventWithTiers` does that work.
+ *
+ * Every word on this page comes from the `events` row, so the admin can
+ * change the site without a developer. Sections whose content is empty
+ * remove themselves rather than rendering a placeholder.
  */
-export default function HomePage() {
-  const lowestPrice = placeholderTicketTypes.reduce(
-    (cheapest, tier) => (tier.priceKobo < cheapest ? tier.priceKobo : cheapest),
-    placeholderTicketTypes[0].priceKobo,
-  );
+
+// Availability changes as people buy, so the page must not be cached
+// indefinitely. 60 seconds keeps it fast while stopping a "Sold out" badge
+// from being hours stale.
+export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const data = await getEventWithTiers();
+  if (!data) return { title: "Tickets" };
+
+  const { event } = data;
+  const venue = formatVenue(event);
+  const description =
+    event.description ??
+    [formatEventDate(event.date), venue].filter(Boolean).join(" · ");
+
+  return {
+    title: { absolute: event.name },
+    description,
+    openGraph: {
+      title: event.name,
+      description,
+      type: "website",
+      locale: "en_NG",
+      ...(event.heroImageUrl ? { images: [{ url: event.heroImageUrl }] } : {}),
+    },
+  };
+}
+
+export default async function HomePage() {
+  const data = await getEventWithTiers();
+
+  // No published event yet. This is what a fresh install shows, and what the
+  // site shows if the admin moves the event back to DRAFT — so it has to be
+  // a deliberate state, not a crash.
+  if (!data) {
+    return (
+      <main id="main" className="flex flex-1 items-center py-24">
+        <Container width="narrow">
+          <EmptyState
+            title="Nothing on sale just yet"
+            description="The next event has not been announced. Please check back soon."
+          />
+        </Container>
+      </main>
+    );
+  }
+
+  const { event, tiers } = data;
 
   return (
-    <main id="main" className="flex flex-1 flex-col justify-center py-20 sm:py-28">
-      <Container width="wide">
-        {/* Single column on a phone; text and details sit side by side from
-            `lg` up so a 1440px laptop is not one tall centred ribbon. */}
-        <div className="grid items-center gap-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
-          <div className="space-y-7">
-            <Badge tone="accent">Sample event · Phase 1 preview</Badge>
+    <div id="top">
+      <SiteHeader event={event} />
 
-            <div className="space-y-5">
-              <h1 className="text-[length:var(--text-display)] font-bold">
-                {placeholderEvent.name}
-              </h1>
-              <p className="max-w-xl text-[length:var(--text-body-lg)] leading-relaxed text-[var(--color-ink-secondary)]">
-                {placeholderEvent.description}
-              </p>
-            </div>
+      <main id="main">
+        <Hero event={event} tiers={tiers} />
+        <SectionRule />
+        <About event={event} />
+        <Programme event={event} />
+        <Gallery event={event} />
+        <TicketsPreview tiers={tiers} />
+        <DressCode event={event} />
+        <Faq event={event} />
+        <Contact event={event} />
+      </main>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <ButtonLink
-                href="/checkout"
-                size="lg"
-                variant="primary"
-                className="w-full sm:w-auto"
-              >
-                Get your ticket
-              </ButtonLink>
-              <p className="tnum text-sm text-[var(--color-ink-muted)]">
-                From {formatNaira(lowestPrice)}
-              </p>
-            </div>
-          </div>
-
-          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-line)] lg:grid-cols-1">
-            {[
-              { label: "Date", value: placeholderEvent.date },
-              { label: "Doors", value: placeholderEvent.startTime },
-              { label: "Venue", value: placeholderEvent.venue },
-              { label: "Dress code", value: placeholderEvent.dressCode },
-            ].map((item) => (
-              <div key={item.label} className="bg-[var(--color-surface-raised)] p-5">
-                <dt className="eyebrow text-[var(--color-ink-muted)]">{item.label}</dt>
-                <dd className="mt-1.5 text-base font-medium">{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </Container>
-    </main>
+      <SiteFooter event={event} />
+    </div>
   );
 }

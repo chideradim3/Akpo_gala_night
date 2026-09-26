@@ -20,7 +20,7 @@ begin
   -- ── The event ────────────────────────────────────────────────────────────
   insert into public.events (
     id, name, slug, description, date, start_time, end_time,
-    venue, address, dress_code, gallery, faq,
+    venue, address, dress_code, gallery, about, experience, faq,
     contact_email, contact_phone, status
   )
   values (
@@ -35,6 +35,22 @@ begin
     'Victoria Island, Lagos',
     'Black tie',
     '[]'::jsonb,
+    'One night, one room, and the people you have been meaning to see all year. '
+    'A seated dinner, a live band that knows when to let the room breathe and when '
+    'not to, and a night that ends later than anyone planned. Places are limited '
+    'because the room is.',
+    jsonb_build_array(
+      jsonb_build_object('time', '7:00 PM',  'title', 'Doors open',
+        'description', 'Valet parking at the main entrance. Champagne on arrival.'),
+      jsonb_build_object('time', '7:45 PM',  'title', 'Guests seated',
+        'description', 'Find your table. VIP tables are reserved and marked.'),
+      jsonb_build_object('time', '8:15 PM',  'title', 'Dinner served',
+        'description', 'Four courses. Let us know about dietary requirements in advance.'),
+      jsonb_build_object('time', '9:30 PM',  'title', 'Live performance',
+        'description', 'The band takes the stage.'),
+      jsonb_build_object('time', '11:00 PM', 'title', 'The floor opens',
+        'description', 'Dancing until close.')
+    ),
     jsonb_build_array(
       jsonb_build_object(
         'question', 'What time should I arrive?',
@@ -62,6 +78,8 @@ begin
   on conflict (slug) do update set
     name          = excluded.name,
     description   = excluded.description,
+    about         = excluded.about,
+    experience    = excluded.experience,
     date          = excluded.date,
     start_time    = excluded.start_time,
     end_time      = excluded.end_time,

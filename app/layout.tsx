@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
+import { Bodoni_Moda, Inter } from "next/font/google";
 
 import "./globals.css";
 
@@ -8,13 +8,18 @@ import "./globals.css";
  * is no request to Google at runtime, so no third-party tracking and no
  * render-blocking external stylesheet.
  *
- * Sora:  wide geometric display face for headings.
- * Inter: clean grotesque for body copy and UI.
+ * Bodoni Moda — a Didone, the letterform of engraved invitations and of
+ * luxury print. It is the typographic voice of a black-tie event, and it is
+ * what gives this site an identity of its own rather than the wide geometric
+ * sans every event site reaches for.
+ *
+ * Its hairline strokes are a liability at small sizes on a dark screen, so
+ * it is used for DISPLAY ONLY — headings, the event name, prices. Body copy
+ * and every control use Inter, which is built for exactly that job.
  */
-const sora = Sora({
-  variable: "--font-sora",
+const display = Bodoni_Moda({
+  variable: "--font-display-face",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -42,7 +47,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-NG" className={`${sora.variable} ${inter.variable} h-full`}>
+    <html lang="en-NG" className={`${display.variable} ${inter.variable} h-full`}>
       <body className="flex min-h-full flex-col">
         <a
           href="#main"

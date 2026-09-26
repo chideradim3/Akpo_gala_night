@@ -1,8 +1,9 @@
 import "server-only";
 
-import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { kobo, type Kobo } from "@/lib/money";
-import type { EventRow, FaqEntry, TicketTypeRow } from "@/types/database";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import type { EventRow, ExperienceEntry, FaqEntry, TicketTypeRow } from "@/types/database";
 
 /**
  * Reading the event and its ticket tiers.
@@ -51,6 +52,9 @@ export type GalaEvent = {
   dressCode: string | null;
   heroImageUrl: string | null;
   gallery: string[];
+  about: string | null;
+  /** The evening's running order. Empty means the section is hidden. */
+  experience: ExperienceEntry[];
   faq: FaqEntry[];
   contactEmail: string | null;
   contactPhone: string | null;
@@ -61,6 +65,23 @@ export type GalaEvent = {
 /** jsonb comes back as `Json`; narrow it without trusting its shape. */
 function toStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function toExperienceEntries(value: unknown): ExperienceEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) return [];
+    const candidate = entry as Record<string, unknown>;
+    if (typeof candidate.title !== "string" || candidate.title.trim() === "") return [];
+    return [
+      {
+        title: candidate.title,
+        time: typeof candidate.time === "string" ? candidate.time : undefined,
+        description:
+          typeof candidate.description === "string" ? candidate.description : undefined,
+      },
+    ];
+  });
 }
 
 function toFaqEntries(value: unknown): FaqEntry[] {
@@ -86,6 +107,8 @@ function toGalaEvent(row: EventRow): GalaEvent {
     dressCode: row.dress_code,
     heroImageUrl: row.hero_image_url,
     gallery: toStringArray(row.gallery),
+    about: row.about,
+    experience: toExperienceEntries(row.experience),
     faq: toFaqEntries(row.faq),
     contactEmail: row.contact_email,
     contactPhone: row.contact_phone,
@@ -110,7 +133,9 @@ function saleWindowState(
  * "which event?" parameter anywhere in the public flow.
  */
 export async function getPublishedEvent(): Promise<GalaEvent | null> {
-  const supabase = createAdminSupabaseClient();
+  // Anon client: RLS only ever returns a PUBLISHED event, so the filter below
+  // is a second lock rather than the only one.
+  const supabase = createPublicSupabaseClient();
 
   const { data, error } = await supabase
     .from("events")
@@ -140,16 +165,22 @@ export async function getPublishedEvent(): Promise<GalaEvent | null> {
  * is the only place that can actually oversell.
  */
 export async function getTicketTiers(eventId: string): Promise<TicketTier[]> {
-  const supabase = createAdminSupabaseClient();
+  // Tier details: anon client, so RLS hides inactive tiers and tiers of an
+  // unpublished event.
+  const publicClient = createPublicSupabaseClient();
+  // Availability: must be the service role. Working out what is left means
+  // counting orders, which anon cannot read — by design. The function returns
+  // only counts, never any order or attendee data.
+  const adminClient = createAdminSupabaseClient();
 
   const [typesResult, availabilityResult] = await Promise.all([
-    supabase
+    publicClient
       .from("ticket_types")
       .select("*")
       .eq("event_id", eventId)
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
-    supabase.rpc("event_ticket_availability", { p_event_id: eventId }),
+    adminClient.rpc("event_ticket_availability", { p_event_id: eventId }),
   ]);
 
   if (typesResult.error) {

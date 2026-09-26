@@ -32,6 +32,12 @@ export type AdminRole = "owner" | "staff";
 /** One entry in `events.faq`. */
 export type FaqEntry = { question: string; answer: string };
 
+/**
+ * One entry in `events.experience` — a line in the evening's running order.
+ * `time` is display copy ("7:00 PM", "Till late"), not a scheduled time.
+ */
+export type ExperienceEntry = { time?: string; title: string; description?: string };
+
 export type Database = {
   public: {
     Tables: {
@@ -49,6 +55,8 @@ export type Database = {
           dress_code: string | null;
           hero_image_url: string | null;
           gallery: Json;
+          about: string | null;
+          experience: Json;
           faq: Json;
           contact_email: string | null;
           contact_phone: string | null;
@@ -69,6 +77,8 @@ export type Database = {
           dress_code?: string | null;
           hero_image_url?: string | null;
           gallery?: Json;
+          about?: string | null;
+          experience?: Json;
           faq?: Json;
           contact_email?: string | null;
           contact_phone?: string | null;
