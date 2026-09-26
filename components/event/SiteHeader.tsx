@@ -1,43 +1,42 @@
 import { ButtonLink, Container } from "@/components/ui";
-import type { GalaEvent } from "@/lib/services/events";
+import { cn } from "@/lib/utils";
 
 /**
  * Site header.
  *
- * Deliberately thin: the wordmark, three anchors, and the one action that
- * matters. A full navigation would be pretending this is a bigger site than
- * it is — there is one page and one thing to do on it.
+ * Deliberately thin: a few anchors and the one action that matters. There is
+ * one page and one thing to do on it, so a full navigation would be
+ * pretending this is a bigger site than it is.
  *
- * The links are hidden below `md`, where the page is short enough to scroll
- * and a hamburger menu would be three taps to reach content that is already
- * two swipes away. The ticket button stays visible at every width.
+ * No wordmark. The event name is already the largest thing on the page,
+ * directly below — repeating it in the bar says nothing new and competes
+ * with the hero for attention.
+ *
+ * The links stay visible at every width rather than collapsing into a
+ * hamburger: three anchors on a page this short do not justify hiding
+ * content behind an extra tap. "The evening" is the longest and the least
+ * urgent, so it is the one that steps aside on the narrowest phones.
  */
-export function SiteHeader({ event }: { event: GalaEvent }) {
+export function SiteHeader() {
   const links = [
-    { href: "#about", label: "About" },
-    { href: "#evening", label: "The evening" },
-    { href: "#tickets", label: "Tickets" },
+    { href: "#about", label: "About", hideOnSmall: false },
+    { href: "#evening", label: "The evening", hideOnSmall: true },
+    { href: "#tickets", label: "Tickets", hideOnSmall: false },
   ];
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--color-line)] bg-[color-mix(in_srgb,var(--color-surface-page)_85%,transparent)] backdrop-blur-md">
       <Container width="wide">
         <div className="flex h-16 items-center justify-between gap-4 sm:h-18">
-          {/* min-w-0 lets this shrink instead of pushing the button off the
-              edge, and the name stays on one line at any length. */}
-          <a
-            href="#top"
-            className="min-w-0 truncate text-base font-semibold [font-family:var(--font-display)] sm:text-xl"
-          >
-            {event.name}
-          </a>
-
-          <nav aria-label="Sections" className="hidden items-center gap-8 md:flex">
+          <nav aria-label="Sections" className="flex min-w-0 items-center gap-5 sm:gap-8">
             {links.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm text-[var(--color-ink-secondary)] transition-colors hover:text-[var(--color-ink)]"
+                className={cn(
+                  "shrink-0 text-[0.8125rem] text-[var(--color-ink-secondary)] transition-colors hover:text-[var(--color-ink)] sm:text-sm",
+                  link.hideOnSmall && "hidden sm:inline",
+                )}
               >
                 {link.label}
               </a>

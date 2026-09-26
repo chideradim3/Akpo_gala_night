@@ -78,7 +78,7 @@ export default async function HomePage() {
 
   return (
     <div id="top">
-      <SiteHeader event={event} />
+      <SiteHeader />
 
       <main id="main">
         <Hero event={event} tiers={tiers} />
