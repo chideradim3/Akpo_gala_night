@@ -16,7 +16,8 @@
     "test:db": "node scripts/test-inventory-race.mjs && node scripts/test-rls.mjs",
     "test:all": "npm test && npm run test:db",
     "db:status": "node scripts/db.mjs status",
-    "simulate-payment": "node scripts/simulate-payment.mjs"
+    "simulate-payment": "node scripts/simulate-payment.mjs",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

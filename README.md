@@ -5,9 +5,9 @@ A ticket sales website for a Gala Night in Nigeria, with an admin dashboard. Cur
 Payment integration and the venue check-in page are built separately by the payment developer —
 see [What this repository does NOT build](#what-this-repository-does-not-build).
 
-**Current status: Phase 2 complete** — the database is live. Schema, Row Level Security and the
-atomic inventory reservation are applied and verified against the hosted Supabase project. There
-is no checkout UI and no payment code yet. See [Phases](#phases) below.
+**Current status: Phase 7 complete** — the site sells tickets end to end. Landing page, checkout with
+atomic inventory reservation, the payment boundary, ticket issuance with QR codes, ticket emails,
+lost-ticket recovery, and an admin dashboard behind mandatory two-factor authentication.
 
 ---
 
@@ -65,6 +65,8 @@ Then open <http://localhost:3000>.
 | `npm run db:seed` | Apply the sample event |
 | `npm run db:status` | Show which migrations are applied |
 | `npm run test:db` | Inventory race + RLS tests (needs local Supabase) |
+| `npm run create-admin -- --email you@example.com --role owner` | Create an administrator |
+| `npm run simulate-payment -- --ref GALA-1042 --amount 500000` | Send a signed fake payment confirmation |
 
 ### Seeing it on your phone
 
@@ -166,6 +168,36 @@ build the thing that reads them.
 
 ---
 
+## The admin
+
+`/admin` is behind Supabase Auth **plus mandatory two-factor authentication**. A password alone
+will not get in, even for a real administrator.
+
+There is no admin sign-up page, deliberately. An administrator exists only because someone holding
+the service-role key created one:
+
+```bash
+npm run create-admin -- --email you@example.com --role owner
+```
+
+That prints a generated password once. On first sign-in the new admin scans a QR code with an
+authenticator app on their own phone — a secret you generate and send them is not a second factor.
+
+| Role | Can |
+|---|---|
+| `owner` | everything: settings, prices, exports |
+| `staff` | view, plus check-in once it exists |
+
+Access is checked by one helper, `requireAdmin(role)` in [`lib/auth/`](lib/auth/), called at the
+top of **every** admin page and action — not once in a layout, because a layout does not run for a
+server action. The payment developer's check-in page uses the same call.
+
+> **Two-factor codes depend on clocks agreeing.** If a code is always rejected, check the device's
+> clock. Windows: Settings → Time & language → Date & time → **Sync now**. A minute of drift is
+> enough to fail.
+
+---
+
 ## Phases
 
 Each phase stops for review before the next one starts.
@@ -174,12 +206,12 @@ Each phase stops for review before the next one starts.
 |---|---|---|
 | 1 | Project setup, design system, folder structure | ✅ done |
 | 2 | Database migrations, RLS, seed data | ✅ done |
-| 3 | Landing page from Supabase | next |
-| 4 | Checkout steps 1–2, order creation with atomic inventory reservation | |
-| 5 | Payment boundary, ticket issuance, ticket pages | |
-| 6 | Email delivery, find-tickets | |
-| 7 | Admin auth with 2FA, overview dashboard | |
-| 8 | Admin ticket types, orders, attendees, settings, CSV export | |
+| 3 | Landing page from Supabase | ✅ done |
+| 4 | Checkout steps 1–2, order creation with atomic inventory reservation | ✅ done |
+| 5 | Payment boundary, ticket issuance, ticket pages | ✅ done |
+| 6 | Email delivery, find-tickets | ✅ done |
+| 7 | Admin auth with 2FA, overview dashboard | ✅ done |
+| 8 | Admin ticket types, orders, attendees, settings, CSV export | next |
 | 9 | Security review and responsive polish | |
 | 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | |
 
