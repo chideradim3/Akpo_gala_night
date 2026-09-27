@@ -67,6 +67,7 @@ Then open <http://localhost:3000>.
 | `npm run test:db` | Inventory race + RLS tests (needs local Supabase) |
 | `npm run create-admin -- --email you@example.com --role owner` | Create an administrator |
 | `npm run simulate-payment -- --ref GALA-1042 --amount 500000` | Send a signed fake payment confirmation |
+| `npm run test-email -- --to you@example.com` | Check that email sending is configured |
 
 ### Seeing it on your phone
 
@@ -165,6 +166,46 @@ Permissions-Policy header so its scanner can open the camera at all.
 
 Note that we still **generate** QR codes — the buyer's ticket page needs the image. We just do not
 build the thing that reads them.
+
+---
+
+## Turning on real emails
+
+Out of the box `EMAIL_PROVIDER=console`: nothing is sent, and each email is written to `.mail/`
+for you to open in a browser. The whole ticket flow works this way, which is why no email account
+was needed to build it.
+
+To send for real you need **a domain you control**. Providers will not let you email strangers
+from a Gmail address — you prove ownership with DNS records, and those same records are what stop
+your tickets landing in spam.
+
+1. Sign up at [resend.com](https://resend.com). The free tier is 3,000 emails a month.
+2. **Domains → Add Domain**, then paste the DNS records it gives you into your registrar.
+   Verification usually takes about 15 minutes.
+3. **API Keys → Create**, and copy the key.
+4. In `.env.local`:
+
+   ```
+   EMAIL_PROVIDER=resend
+   RESEND_API_KEY=re_...
+   EMAIL_FROM=Your Event <tickets@yourdomain.com>
+   ```
+
+   `EMAIL_FROM` must be on the domain you just verified. Getting that wrong is the commonest
+   first failure.
+5. Restart, then check it:
+
+   ```bash
+   npm run test-email -- --to you@example.com
+   ```
+
+No code changes are needed. `lib/services/notifications.ts` picks the driver from that one
+variable, and a different provider means writing a sibling of
+`lib/services/email/resend.ts`.
+
+> **Before going live**, set `NEXT_PUBLIC_SITE_URL` to your real address. The "View your tickets"
+> link in every email is built from it, so while it says `localhost` those links work on your
+> laptop and nowhere else.
 
 ---
 
