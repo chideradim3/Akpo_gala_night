@@ -4,6 +4,7 @@ import { requirePaymentConfirmSecret } from "@/lib/env";
 import { checkRateLimit, clientIpFrom } from "@/lib/rateLimit";
 import { SIGNATURE_HEADER, verifySignature } from "@/lib/services/payment/signature";
 import { confirmOrderPayment, PaymentConfirmationError } from "@/lib/services/orders";
+import { sendTicketsForOrder } from "@/lib/services/ticketDelivery";
 import { confirmPaymentSchema } from "@/lib/validation/payment";
 
 /**
@@ -88,14 +89,26 @@ export async function POST(request: Request) {
       ticketsIssued: result.ticketsIssued,
     });
 
-    // Phase 6 hooks in here: email the tickets after the transaction has
-    // committed. Deliberately after, and deliberately not awaited into the
-    // transaction — a failing mail server must never undo a real payment.
+    // Email the tickets, AFTER the transaction has committed.
+    //
+    // Deliberately outside it: a mail outage must never roll back a payment
+    // that actually succeeded. sendTicketsForOrder returns false instead of
+    // throwing, the failure is written to audit_log, and the buyer can
+    // still reach their tickets from the return page or /find-tickets.
+    //
+    // Only on a fresh PAID. ALREADY_PROCESSED means a retried webhook, and
+    // emailing again for that would spam someone whose provider is simply
+    // being diligent.
+    let emailed: boolean | undefined;
+    if (result.outcome === "PAID") {
+      emailed = await sendTicketsForOrder(result.orderId);
+    }
 
     return NextResponse.json({
       ok: true,
       outcome: result.outcome,
       ticketsIssued: result.ticketsIssued,
+      ...(emailed === undefined ? {} : { emailed }),
     });
   } catch (error) {
     if (error instanceof PaymentConfirmationError) {

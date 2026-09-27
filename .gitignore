@@ -45,3 +45,6 @@ next-env.d.ts
 
 # compiled unit tests
 /.test-build/
+
+# emails written by the console driver in development
+/.mail/
