@@ -22,10 +22,11 @@ type NavItem = { href: string; label: string; ownerOnly?: boolean; soon?: boolea
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/orders", label: "Orders", soon: true },
-  { href: "/admin/attendees", label: "Attendees", soon: true },
-  { href: "/admin/ticket-types", label: "Ticket types", ownerOnly: true, soon: true },
-  { href: "/admin/event", label: "Event settings", ownerOnly: true, soon: true },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/attendees", label: "Attendees" },
+  { href: "/admin/ticket-types", label: "Ticket types", ownerOnly: true },
+  { href: "/admin/event", label: "Event settings", ownerOnly: true },
+  { href: "/admin/audit", label: "Audit log", ownerOnly: true },
   { href: "/admin/check-in", label: "Check-in", soon: true },
 ];
 

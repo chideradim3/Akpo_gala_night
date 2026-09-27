@@ -163,6 +163,8 @@ export type Database = {
           expires_at: string;
           paid_at: string | null;
           payment_reference: string | null;
+          refund_requested_at: string | null;
+          refund_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -177,6 +179,8 @@ export type Database = {
           expires_at: string;
           paid_at?: string | null;
           payment_reference?: string | null;
+          refund_requested_at?: string | null;
+          refund_reason?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
         Relationships: [];
