@@ -26,9 +26,30 @@ const OPTIONS = {
   color: { dark: "#000000", light: "#ffffff" },
 };
 
-/** Inline SVG markup for a ticket page. */
+/**
+ * Inline SVG markup for a ticket page, sized by its container.
+ *
+ * The library hardcodes `width="320" height="320"` on the <svg>, which
+ * ignores whatever box it is placed in and overflows it. Those attributes
+ * are stripped so the `viewBox` governs and CSS decides the size — the QR
+ * then scales to the card on a phone and on a laptop without a fixed number
+ * anywhere.
+ *
+ * The viewBox is left intact: it is what preserves the square aspect ratio
+ * and the module grid. `shape-rendering="crispEdges"`, which the library
+ * also sets, keeps the squares from being anti-aliased into grey mush when
+ * scaled — that matters for whether a scanner can read it.
+ */
 export async function qrSvg(qrToken: string): Promise<string> {
-  return QRCode.toString(qrToken, { ...OPTIONS, type: "svg", width: 320 });
+  const svg = await QRCode.toString(qrToken, { ...OPTIONS, type: "svg" });
+
+  return svg.replace(
+    /^<svg([^>]*)>/,
+    (_match, attributes: string) =>
+      `<svg${attributes
+        .replace(/\s(width|height)="[^"]*"/g, "")}` +
+      ` width="100%" height="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Ticket QR code">`,
+  );
 }
 
 /** `data:image/png;base64,…` for emails and downloads. */

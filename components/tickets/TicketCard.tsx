@@ -75,12 +75,18 @@ export function TicketCard({
       </div>
 
       <CardBody className="space-y-4 p-5 text-center sm:p-6">
-        <div
-          className="mx-auto w-full max-w-[13rem] rounded-[var(--radius-control)] bg-white p-3"
-          // Server-generated SVG from our own QR library — no user input
-          // reaches this, only a random token we created.
-          dangerouslySetInnerHTML={{ __html: qrSvgMarkup }}
-        />
+        {/* The white plate. `aspect-square` gives the SVG a height to fill —
+            without it, an svg set to height:100% inside an auto-height box
+            collapses. Bigger than it needs to be on purpose: this gets
+            scanned in a dim foyer off a phone at low brightness. */}
+        <div className="mx-auto w-full max-w-[17rem] rounded-[var(--radius-control)] bg-white p-3.5">
+          <div
+            className="aspect-square w-full [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
+            // Server-generated SVG from our own QR library — the only input
+            // is a random token we created, never anything from a user.
+            dangerouslySetInnerHTML={{ __html: qrSvgMarkup }}
+          />
+        </div>
 
         <div>
           <p className="eyebrow text-[var(--color-ink-muted)]">Ticket code</p>
