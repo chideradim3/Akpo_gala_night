@@ -6,6 +6,7 @@ import { checkRateLimit, clientIpFrom } from "@/lib/rateLimit";
 import { getPublishedEvent } from "@/lib/services/events";
 import { upsertAttendee } from "@/lib/services/attendees";
 import { createPendingOrder, OrderCreationError } from "@/lib/services/orders";
+import { buildReturnUrl, getPaymentService } from "@/lib/services/payment";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createOrderSchema, fieldErrors } from "@/lib/validation/checkout";
 
@@ -22,12 +23,8 @@ import { createOrderSchema, fieldErrors } from "@/lib/validation/checkout";
 export type CreateOrderResult =
   | {
       ok: true;
-      order: {
-        reference: string;
-        accessToken: string;
-        totalKobo: number;
-        expiresAt: string;
-      };
+      /** Where to send the buyer to pay. The client navigates here. */
+      redirectUrl: string;
     }
   | {
       ok: false;
@@ -96,19 +93,43 @@ export async function createOrderAction(rawInput: unknown): Promise<CreateOrderR
       items,
     });
 
-    return {
-      ok: true,
-      order: {
-        reference: order.reference,
-        accessToken: order.accessToken,
-        totalKobo: order.totalKobo,
-        expiresAt: order.expiresAt,
-      },
-    };
+    // ── 6. Hand off to the payment provider ────────────────────────────
+    // The order exists and its seats are held. Everything from here is the
+    // payment developer's side of the boundary; we only need a URL.
+    const paymentService = await getPaymentService();
 
-    // Phase 5 continues from here: call paymentService.startPayment() with
-    // this order and redirect the buyer to the URL it returns. Nothing about
-    // the code above needs to change for that.
+    let redirectUrl: string;
+    try {
+      const started = await paymentService.startPayment({
+        orderId: order.orderId,
+        reference: order.reference,
+        amountKobo: order.totalKobo,
+        currency: "NGN",
+        customer: {
+          email: details.email,
+          firstName: details.firstName,
+          lastName: details.lastName,
+          phone: details.phone,
+        },
+        returnUrl: buildReturnUrl(order.reference, order.accessToken),
+      });
+      redirectUrl = started.redirectUrl;
+    } catch (paymentError) {
+      // The order stays PENDING and expires on its own in 30 minutes,
+      // releasing the seats. Nothing to unwind by hand.
+      console.error("[checkout] startPayment failed", {
+        reference: order.reference,
+        error: paymentError,
+      });
+      return {
+        ok: false,
+        message:
+          "We could not reach the payment provider. Your seats are held for 30 minutes — " +
+          "please try again shortly.",
+      };
+    }
+
+    return { ok: true, redirectUrl };
   } catch (error) {
     if (error instanceof OrderCreationError) {
       return {

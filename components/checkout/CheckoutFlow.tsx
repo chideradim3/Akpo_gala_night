@@ -5,7 +5,6 @@ import { useState, useTransition } from "react";
 
 import { createOrderAction } from "@/app/checkout/actions";
 import { GuestDetailsStep, type GuestDetailsValues } from "@/components/checkout/GuestDetailsStep";
-import { OrderHold } from "@/components/checkout/OrderHold";
 import { SelectTicketsStep } from "@/components/checkout/SelectTicketsStep";
 import { Card, CardBody, Container, ErrorMessage, Stepper } from "@/components/ui";
 import { normalizeNigerianPhone } from "@/lib/phone";
@@ -36,13 +35,6 @@ const EMPTY_DETAILS: GuestDetailsValues = {
   lastName: "",
   phone: "",
   consent: false,
-};
-
-type CreatedOrder = {
-  reference: string;
-  accessToken: string;
-  totalKobo: number;
-  expiresAt: string;
 };
 
 /**
@@ -86,7 +78,6 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [order, setOrder] = useState<CreatedOrder | null>(null);
 
   function goToStep(next: 1 | 2) {
     setFormError(null);
@@ -132,8 +123,10 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
       });
 
       if (result.ok) {
-        setOrder(result.order);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // Leaving for the payment provider. `isPending` stays true through
+        // the navigation, so the button remains disabled and nobody can
+        // create a second order by double-tapping.
+        window.location.assign(result.redirectUrl);
         return;
       }
 
@@ -151,18 +144,6 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
         router.refresh();
       }
     });
-  }
-
-  // Order placed. Payment itself arrives in Phase 5.
-  if (order) {
-    return (
-      <Container width="narrow" className="py-10 sm:py-16">
-        <Stepper steps={STEPS} current={3} />
-        <div className="mt-10">
-          <OrderHold order={order} />
-        </div>
-      </Container>
-    );
   }
 
   return (

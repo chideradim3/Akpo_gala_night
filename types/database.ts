@@ -290,6 +290,24 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      confirm_order_payment: {
+        Args: {
+          p_reference: string;
+          p_payment_reference: string;
+          p_amount_kobo: number;
+          p_status: string;
+          p_paid_at: string;
+        };
+        Returns: Array<{
+          outcome: string;
+          order_id: string;
+          tickets_issued: number;
+        }>;
+      };
+      issue_tickets_for_order: {
+        Args: { p_order_id: string };
+        Returns: number;
+      };
     };
 
     Enums: {

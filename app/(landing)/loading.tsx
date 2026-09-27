@@ -5,6 +5,11 @@ import { Container, Skeleton, SkeletonText } from "@/components/ui";
  *
  * Shaped like the hero it replaces — rules, name, particulars — so the page
  * does not jump when the real content arrives.
+ *
+ * It lives inside the (landing) route group deliberately. At app/loading.tsx
+ * it applied to EVERY route beneath it, so the checkout, the ticket page and
+ * the payment return all flashed a skeleton of a hero they do not have. A
+ * route group scopes it to this page without changing the URL.
  */
 export default function Loading() {
   return (

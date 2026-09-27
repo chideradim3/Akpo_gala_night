@@ -2,6 +2,7 @@ import "server-only";
 
 import { kobo, type Kobo } from "@/lib/money";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import type { OrderStatus, TicketStatus } from "@/types/database";
 
 /**
  * Orders.
@@ -161,4 +162,215 @@ export async function getOrderStatus(reference: string, accessToken: string) {
   }
 
   return data;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Payment confirmation — Phase 5
+   ──────────────────────────────────────────────────────────────────────── */
+
+export type ConfirmOutcome =
+  | "PAID"
+  | "ALREADY_PROCESSED"
+  | "FAILED_RECORDED"
+  | "REFUND_REQUIRED";
+
+export type ConfirmResult = {
+  outcome: ConfirmOutcome;
+  orderId: string;
+  ticketsIssued: number;
+};
+
+/** Why a confirmation was refused. The route turns these into HTTP codes. */
+const CONFIRM_ERROR_MESSAGES: Record<string, string> = {
+  GN101: "No order with that reference",
+  GN102: "Order is not awaiting payment",
+  GN103: "Paid amount does not match the order total",
+  GN104: "That payment reference belongs to a different order",
+};
+
+export class PaymentConfirmationError extends Error {
+  readonly code: string;
+  readonly detail: string | null;
+
+  constructor(code: string, message: string, detail: string | null = null) {
+    super(message);
+    this.name = "PaymentConfirmationError";
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
+/**
+ * Mark an order paid or failed. THE ONLY WAY AN ORDER BECOMES PAID.
+ *
+ * Reached from exactly one place — POST /api/payments/confirm, behind an
+ * HMAC signature check. No page, button or redirect calls this (spec §3
+ * rules 5 and 6).
+ *
+ * The work itself is a single Postgres transaction: status, paid_at,
+ * payment_reference, one ticket per unit, and the audit rows all commit
+ * together or not at all.
+ *
+ * Idempotent on `paymentReference`. Providers retry webhooks they think
+ * failed; a repeat returns ALREADY_PROCESSED and changes nothing.
+ */
+export async function confirmOrderPayment(input: {
+  reference: string;
+  paymentReference: string;
+  amountKobo: number;
+  status: "success" | "failed";
+  paidAt: string;
+  raw?: unknown;
+}): Promise<ConfirmResult> {
+  const supabase = createAdminSupabaseClient();
+
+  const { data, error } = await supabase.rpc("confirm_order_payment", {
+    p_reference: input.reference,
+    p_payment_reference: input.paymentReference,
+    p_amount_kobo: input.amountKobo,
+    p_status: input.status,
+    p_paid_at: input.paidAt,
+  });
+
+  if (error) {
+    const code = typeof error.code === "string" ? error.code : "UNKNOWN";
+    const detail = typeof error.details === "string" ? error.details : null;
+
+    console.error("[payments] confirm_order_payment rejected", {
+      reference: input.reference,
+      paymentReference: input.paymentReference,
+      code,
+      message: error.message,
+      detail,
+    });
+
+    throw new PaymentConfirmationError(
+      code,
+      CONFIRM_ERROR_MESSAGES[code] ?? "Could not confirm the payment",
+      detail,
+    );
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    throw new PaymentConfirmationError("EMPTY_RESULT", "Could not confirm the payment");
+  }
+
+  // The provider's own payload, kept for the audit trail. Written after the
+  // transaction: it is useful for investigating a dispute, but losing it
+  // must never roll back a payment that actually succeeded.
+  if (input.raw !== undefined) {
+    await supabase.from("audit_log").insert({
+      actor: "payment",
+      action: "payment.raw_payload",
+      details: {
+        reference: input.reference,
+        paymentReference: input.paymentReference,
+        raw: input.raw as never,
+      },
+    });
+  }
+
+  return {
+    outcome: row.outcome as ConfirmOutcome,
+    orderId: row.order_id,
+    ticketsIssued: row.tickets_issued,
+  };
+}
+
+/** One admission ticket, as the ticket page needs it. */
+export type IssuedTicket = {
+  id: string;
+  ticketCode: string;
+  qrToken: string;
+  status: TicketStatus;
+  checkedInAt: string | null;
+  tierName: string;
+  admits: number;
+};
+
+export type OrderWithTickets = {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  totalKobo: Kobo;
+  paidAt: string | null;
+  guestName: string;
+  email: string;
+  tickets: IssuedTicket[];
+};
+
+/**
+ * Everything the buyer's ticket page needs, found by its access token.
+ *
+ * Two round trips, not four.
+ *
+ * PostgREST can embed related rows in one query, but only when the generated
+ * types describe the foreign keys, and ours are hand-written. So the reads
+ * are explicit — and then deliberately batched, because each round trip to
+ * Supabase is a real wait on a slow connection and four of them in series
+ * made this page take a minute.
+ *
+ * Hop 1: the order, and every ticket tier (there are a handful, so fetching
+ *        them all is cheaper than waiting to learn which ones are needed).
+ * Hop 2: the attendee and the tickets.
+ */
+export async function getOrderByAccessToken(
+  accessToken: string,
+): Promise<OrderWithTickets | null> {
+  const supabase = createAdminSupabaseClient();
+
+  const [orderResult, tierResult] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id, reference, status, total_kobo, paid_at, attendee_id")
+      .eq("access_token", accessToken)
+      .maybeSingle(),
+    supabase.from("ticket_types").select("id, name, admits"),
+  ]);
+
+  if (orderResult.error) {
+    console.error("[orders] getOrderByAccessToken failed", orderResult.error.message);
+    return null;
+  }
+  const order = orderResult.data;
+  if (!order) return null;
+
+  const [attendeeResult, ticketResult] = await Promise.all([
+    supabase
+      .from("attendees")
+      .select("first_name, last_name, email")
+      .eq("id", order.attendee_id)
+      .maybeSingle(),
+    supabase
+      .from("tickets")
+      .select("id, ticket_code, qr_token, status, checked_in_at, ticket_type_id")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const tierById = new Map(
+    (tierResult.data ?? []).map((tier) => [tier.id, { name: tier.name, admits: tier.admits }]),
+  );
+
+  const attendee = attendeeResult.data;
+
+  return {
+    id: order.id,
+    reference: order.reference,
+    status: order.status,
+    totalKobo: kobo(order.total_kobo),
+    paidAt: order.paid_at,
+    guestName: attendee ? `${attendee.first_name} ${attendee.last_name}` : "Guest",
+    email: attendee?.email ?? "",
+    tickets: (ticketResult.data ?? []).map((ticket) => ({
+      id: ticket.id,
+      ticketCode: ticket.ticket_code,
+      qrToken: ticket.qr_token,
+      status: ticket.status,
+      checkedInAt: ticket.checked_in_at,
+      tierName: tierById.get(ticket.ticket_type_id)?.name ?? "Ticket",
+      admits: tierById.get(ticket.ticket_type_id)?.admits ?? 1,
+    })),
+  };
 }
