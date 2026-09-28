@@ -57,7 +57,12 @@ export function buttonClasses({
 } = {}) {
   return cn(
     "inline-flex items-center justify-center rounded-[var(--radius-pill)]",
-    "font-semibold tracking-[0.08em] uppercase whitespace-nowrap",
+    // Deliberately NOT whitespace-nowrap. A long label on a full-width
+    // button then overflows its own box instead of wrapping, and because
+    // overflow is visible by default that pushes the whole page wider —
+    // found by the responsive audit as 13px of horizontal scroll at 320px.
+    // Wrapping is the lesser evil, and most labels here are two words.
+    "font-semibold tracking-[0.08em] uppercase text-balance",
     "transition-[background-color,border-color,opacity,filter] duration-200",
     "[transition-timing-function:var(--ease-out-soft)]",
     "disabled:cursor-not-allowed disabled:opacity-45",

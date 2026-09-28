@@ -5,7 +5,7 @@ A ticket sales website for a Gala Night in Nigeria, with an admin dashboard. Cur
 Payment integration and the venue check-in page are built separately by the payment developer —
 see [What this repository does NOT build](#what-this-repository-does-not-build).
 
-**Current status: Phase 7 complete** — the site sells tickets end to end. Landing page, checkout with
+**Current status: Phase 9 complete** — the site sells tickets end to end. Landing page, checkout with
 atomic inventory reservation, the payment boundary, ticket issuance with QR codes, ticket emails,
 lost-ticket recovery, and an admin dashboard behind mandatory two-factor authentication.
 
@@ -68,6 +68,9 @@ Then open <http://localhost:3000>.
 | `npm run create-admin -- --email you@example.com --role owner` | Create an administrator |
 | `npm run simulate-payment -- --ref GALA-1042 --amount 500000` | Send a signed fake payment confirmation |
 | `npm run test-email -- --to you@example.com` | Check that email sending is configured |
+| `npm run audit` | Security audit + responsive audit |
+| `npm run audit:security` | Static check of the non-negotiable rules |
+| `npm run audit:responsive` | Measures every page at 320–1440px for overflow |
 
 ### Seeing it on your phone
 
@@ -141,6 +144,9 @@ comment saying what it is and which phase uses it. Variables belonging to later 
 optional, so the app boots with an empty `.env.local`.
 
 Supabase setup is written out step by step in [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
+
+[SECURITY.md](SECURITY.md) records what is protected, what is not, and the checklist to work
+through before taking real money.
 
 ---
 
@@ -253,7 +259,7 @@ Each phase stops for review before the next one starts.
 | 6 | Email delivery, find-tickets | ✅ done |
 | 7 | Admin auth with 2FA, overview dashboard | ✅ done |
 | 8 | Admin ticket types, orders, attendees, settings, CSV export | next |
-| 9 | Security review and responsive polish | |
-| 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | |
+| 9 | Security review and responsive polish | ✅ done |
+| 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | next |
 
 The full specification is in [`gala_prompt.MD`](gala_prompt.MD).

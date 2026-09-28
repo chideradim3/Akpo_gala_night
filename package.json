@@ -18,7 +18,10 @@
     "db:status": "node scripts/db.mjs status",
     "simulate-payment": "node scripts/simulate-payment.mjs",
     "create-admin": "node scripts/create-admin.mjs",
-    "test-email": "node scripts/test-email.mjs"
+    "test-email": "node scripts/test-email.mjs",
+    "audit:security": "node scripts/security-audit.mjs",
+    "audit:responsive": "node scripts/responsive-audit.mjs",
+    "audit": "npm run audit:security && npm run audit:responsive"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

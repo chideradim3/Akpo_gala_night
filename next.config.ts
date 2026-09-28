@@ -34,18 +34,55 @@ function localNetworkOrigins(): string[] {
  */
 const isDev = process.env.NODE_ENV !== "production";
 
+/**
+ * The Supabase project's own origin, so the CSP can name it instead of
+ * allowing every https host on the internet.
+ *
+ * `https:` as a blanket allowance largely defeats the point of a CSP: an
+ * injected script could exfiltrate to anywhere. Naming one host means a
+ * successful injection has nowhere to send what it steals.
+ *
+ * Falls back to the broad form if the variable is missing, because a site
+ * that refuses to talk to its own database is worse than a loose header —
+ * and `lib/env.ts` already complains loudly about the missing variable.
+ */
+const supabaseOrigin = (() => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+})();
+
+const connectSrc = supabaseOrigin
+  ? `'self' ${supabaseOrigin} ${supabaseOrigin.replace(/^https:/, "wss:")}`
+  : "'self' https: wss:";
+
+const imgSrc = supabaseOrigin
+  ? `'self' data: blob: ${supabaseOrigin}`
+  : "'self' data: blob: https:";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   // 'unsafe-eval' is needed by the dev-mode React refresh runtime only.
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  // data: covers the inline QR code images generated in Phase 5.
-  // blob: and https: cover ticket-type images uploaded to Supabase Storage.
-  "img-src 'self' data: blob: https:",
+  // data: for the inline QR codes, blob: for uploads in progress, and the
+  // Supabase origin for images stored there. Not all of https.
+  `img-src ${imgSrc}`,
   "font-src 'self' data:",
-  // Supabase over https/wss. Tightened to the project's own host in Phase 2.
-  "connect-src 'self' https: wss:",
-  "frame-ancestors 'none'",
+  // Supabase only — REST, auth and realtime. Narrowed from `https:` in the
+  // Phase 9 review.
+  `connect-src ${connectSrc}`,
+  // PRODUCTION: nothing may frame this site — that is clickjacking
+  // protection and it matters on the checkout above all.
+  //
+  // DEVELOPMENT: 'self' instead, so /dev/responsive can frame our own
+  // pages to measure them at widths headless Chrome refuses to give.
+  // Other origins are still refused either way.
+  `frame-ancestors ${isDev ? "'self'" : "'none'"}`,
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
@@ -64,7 +101,9 @@ const contentSecurityPolicy = [
 
 const securityHeaders = [
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
-  { key: "X-Frame-Options", value: "DENY" },
+  // The older header that does the same job for browsers predating CSP.
+  // Same reasoning as frame-ancestors above.
+  { key: "X-Frame-Options", value: isDev ? "SAMEORIGIN" : "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
