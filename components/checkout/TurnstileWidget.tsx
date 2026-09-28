@@ -86,11 +86,17 @@ export function TurnstileWidget({
   const widgetId = useRef<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  // The callback changes identity on every parent render; a ref keeps the
-  // widget from being torn down and rebuilt each time, which would make it
-  // flicker and lose its token.
+  // The callback changes identity on every parent render, and the widget
+  // must not be torn down and rebuilt each time — it would flicker and
+  // lose its token. So the effect below depends only on the site key, and
+  // reaches the current callback through this ref.
+  //
+  // Updated inside an effect, not during render: writing to a ref while
+  // rendering is a side effect, and React may render without committing.
   const latestOnToken = useRef(onToken);
-  latestOnToken.current = onToken;
+  useEffect(() => {
+    latestOnToken.current = onToken;
+  }, [onToken]);
 
   useEffect(() => {
     if (!siteKey || !container.current) return;
