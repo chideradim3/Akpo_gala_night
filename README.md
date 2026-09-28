@@ -165,6 +165,8 @@ optional, so the app boots with an empty `.env.local`.
 
 Supabase setup is written out step by step in [SUPABASE_SETUP.md](SUPABASE_SETUP.md).
 
+[DEPLOYMENT.md](DEPLOYMENT.md) is the step-by-step for putting this on Vercel.
+
 [SECURITY.md](SECURITY.md) records what is protected, what is not, and the checklist to work
 through before taking real money.
 
