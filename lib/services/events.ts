@@ -137,19 +137,34 @@ export async function getPublishedEvent(): Promise<GalaEvent | null> {
   // is a second lock rather than the only one.
   const supabase = createPublicSupabaseClient();
 
-  const { data, error } = await supabase
-    .from("events")
-    .select("*")
-    .eq("status", "PUBLISHED")
-    .order("date", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("status", "PUBLISHED")
+      .order("date", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(`Could not load the event: ${error.message}`);
+    if (error) throw new Error(error.message);
+
+    return data ? toGalaEvent(data) : null;
+  } catch (error) {
+    // Returns null rather than throwing, and the callers all render a
+    // "nothing on sale yet" state from it.
+    //
+    // This page is statically prerendered at build time, so a throw here
+    // FAILS THE WHOLE DEPLOY — and it happened: one build died because the
+    // connection to Supabase blipped for a second. Refusing to ship a
+    // release because a network call was briefly slow is the wrong
+    // trade. The page revalidates every 60 seconds, so the worst case is
+    // a minute of "check back soon" that heals itself.
+    //
+    // A genuine misconfiguration still fails loudly: requireSupabaseEnv()
+    // throws before any request is made.
+    console.error("[events] could not load the published event", error);
+    return null;
   }
-
-  return data ? toGalaEvent(data) : null;
 }
 
 /**
@@ -183,11 +198,16 @@ export async function getTicketTiers(eventId: string): Promise<TicketTier[]> {
     adminClient.rpc("event_ticket_availability", { p_event_id: eventId }),
   ]);
 
+  // Same reasoning as getPublishedEvent: an empty tier list renders
+  // "nothing on sale right now", which is survivable. A thrown error during
+  // the static build is not.
   if (typesResult.error) {
-    throw new Error(`Could not load ticket types: ${typesResult.error.message}`);
+    console.error("[events] could not load ticket types", typesResult.error.message);
+    return [];
   }
   if (availabilityResult.error) {
-    throw new Error(`Could not load availability: ${availabilityResult.error.message}`);
+    console.error("[events] could not load availability", availabilityResult.error.message);
+    return [];
   }
 
   const availableById = new Map<string, number>(

@@ -45,17 +45,15 @@ library or a payment SDK.
 
 ### Node version
 
-You need **Node.js 22 or newer**.
+You need **Node.js 22 or newer**, declared in `package.json` and `.nvmrc`.
 
-`@supabase/supabase-js` declares `engines: node >= 22`, and it means it: outside Next.js,
-`createClient()` throws on Node 20 because it wants a WebSocket that only Node 22 provides. The
-app itself still runs on Node 20 today — Next.js supplies that WebSocket — but you are relying on
-a polyfill to paper over an unmet requirement, and any patch release of the library could stop
-that working.
+`@supabase/supabase-js` requires it: on Node 20, `createClient()` throws outside Next.js because
+it wants a WebSocket that only Node 22 provides natively. Check with `node --version`; if it says
+20, install the LTS from [nodejs.org](https://nodejs.org) and reopen your terminal.
 
-`package.json` and `.nvmrc` both declare 22, so `npm install` warns until you upgrade. Download
-the LTS installer from [nodejs.org](https://nodejs.org), run it, reopen your terminal, and check
-with `node --version`. Nothing in this project needs changing.
+Use **`npm ci`** rather than `npm install` when you just want the project running. It installs
+exactly what `package-lock.json` records, so dependencies cannot shift underneath you. Save
+`npm install` for when you are deliberately adding or updating a package.
 
 ```bash
 npm install
@@ -184,6 +182,25 @@ Permissions-Policy header so its scanner can open the camera at all.
 
 Note that we still **generate** QR codes — the buyer's ticket page needs the image. We just do not
 build the thing that reads them.
+
+---
+
+## Keeping it working
+
+Every push runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): types, lint, unit tests,
+the security audit, a production build, and a dependency vulnerability check — on Node 22, with
+`npm ci` so the dependency tree is exactly the one recorded in the lockfile.
+
+It builds with placeholder Supabase credentials and no database. That works because every public
+read degrades to an empty page rather than throwing — a deploy should not fail because a network
+call was briefly slow, which is a mistake this project made once already.
+
+Locally, before anything important:
+
+```bash
+npm run audit      # security invariants + responsive layout
+npm run test:db    # inventory race + Row Level Security (needs local Supabase)
+```
 
 ---
 

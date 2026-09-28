@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc -p tsconfig.test.json && node --test .test-build",
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/**/*.test.js\"",
     "typecheck": "tsc --noEmit",
     "db:push": "node scripts/db.mjs push",
     "db:seed": "node scripts/db.mjs seed",

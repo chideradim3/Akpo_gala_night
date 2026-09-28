@@ -1,0 +1,77 @@
+# Runs on every push and pull request.
+#
+# This is the answer to "how do I stop something breaking without noticing".
+# The checks below are the ones that would have caught every mistake made
+# while building this — a wrong type, a lint error, a broken money helper,
+# a missing admin guard — and they now run whether or not anyone remembers.
+#
+# It pins Node 22, the version @supabase/supabase-js requires. A pull
+# request that works on someone's older laptop but not on 22 fails here
+# rather than in production.
+#
+# It does NOT talk to Supabase. Placeholder credentials let the build run;
+# the database itself is covered by `npm run test:db` locally, which needs a
+# real instance.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    env:
+      # Shaped like the real thing so the clients construct, but pointing
+      # nowhere. Every data read is written to degrade to an empty page
+      # rather than throw, so the build completes without a database.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ci_placeholder
+      SUPABASE_SERVICE_ROLE_KEY: sb_secret_ci_placeholder
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      PAYMENT_PROVIDER: mock
+      EMAIL_PROVIDER: console
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Read from .nvmrc, so the version lives in one place and CI
+          # cannot drift away from what developers run.
+          node-version-file: .nvmrc
+          cache: npm
+
+      # ci, not install: installs exactly what package-lock.json says and
+      # fails if the lockfile is out of step, so a dependency cannot change
+      # underneath the checks.
+      - run: npm ci
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Security audit
+        run: npm run audit:security
+
+      - name: Production build
+        run: npm run build
+
+      # Fails the run on a known vulnerability of high severity or worse.
+      # Moderate and below are reported but do not block, because a
+      # transitive advisory with no fix available should not stop a deploy.
+      - name: Dependency vulnerabilities
+        run: npm audit --audit-level=high
