@@ -12,6 +12,7 @@
  * this system was designed not to fail are still in place.
  */
 
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 
@@ -187,7 +188,30 @@ check(!/script-src[^;]*'unsafe-eval'(?![^;]*isDev)/.test(config.replace(/\n/g, "
 
 console.log("\n=== 8. Nothing sensitive is committed ===");
 
-const tracked = allFiles.filter((f) => !rel(f).startsWith("."));
+/**
+ * What git actually has committed.
+ *
+ * Previously this guessed, by excluding any path starting with a dot —
+ * which silently excluded .github/ entirely, so a key pasted into a CI
+ * workflow would not have been noticed. It also had the opposite problem:
+ * it could have scanned .env.local, which holds real keys and is correctly
+ * never committed, and reported a leak that was not one.
+ *
+ * Asking git removes both mistakes: the question is "what would a stranger
+ * see in this repository?", and only git knows the answer.
+ */
+const tracked = (() => {
+  try {
+    return execFileSync("git", ["ls-files"], { encoding: "utf8", cwd: ROOT })
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => join(ROOT, line));
+  } catch {
+    console.log("  NOTE  not a git repository — falling back to scanning every file");
+    return allFiles;
+  }
+})();
 const envFiles = allFiles.filter((f) => /(^|\/)\.env($|\.)/.test(rel(f)));
 const gitignore = readFileSync(join(ROOT, ".gitignore"), "utf8");
 
@@ -213,12 +237,31 @@ check(
 check(gitignore.includes(".env*"), ".gitignore excludes .env files");
 check(gitignore.includes(".mail"), ".gitignore excludes the local mail outbox");
 
-const secretPattern = /(sb_secret_|ghp_|github_pat_|re_[A-Za-z0-9]{20,})/;
+// Includes .yml and .yaml: a CI workflow is one of the likelier places
+// for someone to paste a key, and leaving it unscanned was a blind spot.
+const SCANNED = [".ts", ".tsx", ".md", ".json", ".sql", ".mjs", ".yml", ".yaml"];
+
+/**
+ * A real secret, not a stand-in.
+ *
+ * Placeholders are everywhere in documentation and CI, and an audit that
+ * flags them every run is an audit people learn to ignore. Real keys are
+ * long and random; "sb_secret_ci_placeholder" is neither.
+ */
+function looksLikeRealSecret(value) {
+  if (/placeholder|example|your[-_]?key|xxx|\.\.\./i.test(value)) return false;
+  const body = value.replace(/^(sb_secret_|ghp_|github_pat_|re_)/, "");
+  if (body.length < 16) return false;
+  // Random strings mix cases and digits; a hand-written stand-in rarely does.
+  return /[A-Z]/.test(body) && /[a-z]/.test(body) && /[0-9]/.test(body);
+}
+
+const secretPattern = /(sb_secret_|ghp_|github_pat_|re_)[A-Za-z0-9_-]{8,}/g;
 const leaky = tracked
-  .filter((f) => [".ts", ".tsx", ".md", ".json", ".sql", ".mjs"].includes(extname(f)))
+  .filter((f) => SCANNED.includes(extname(f)))
   // This file necessarily contains the patterns it searches for.
   .filter((f) => rel(f) !== "scripts/security-audit.mjs")
-  .filter((f) => secretPattern.test(read(f)));
+  .filter((f) => (read(f).match(secretPattern) ?? []).some(looksLikeRealSecret));
 check(leaky.length === 0, "No live-looking secret in any source file", leaky.map(rel).join(", "));
 
 console.log("\n=== 9. Raw errors are not shown to users ===");
