@@ -83,17 +83,42 @@ export async function createOrderAction(rawInput: unknown): Promise<CreateOrderR
     return { ok: false, message: "Tickets are not on sale at the moment." };
   }
 
-  // ── 5. The payment provider, BEFORE anything is reserved ────────────────
+  // ── 5. The attendee ─────────────────────────────────────────────────────
+  // Recorded BEFORE the payment provider is consulted, and deliberately so.
+  //
+  // Someone who has filled in step 1, ticked the consent box and chosen
+  // tickets is worth knowing about whether or not the payment step is
+  // available to them — they are the guest list of everyone who tried.
+  // Writing the row costs no inventory and blocks nobody, which is what
+  // separates it from creating the order.
+  //
+  // This was briefly ordered the other way round, after the provider check,
+  // which meant a deployment with no payment integration recorded nobody at
+  // all. That lost real people.
+  let attendeeId: string;
+  try {
+    attendeeId = await upsertAttendee(details);
+  } catch (error) {
+    console.error("[checkout] could not record the attendee", error);
+    return {
+      ok: false,
+      message: "Something went wrong on our side. Please try again in a moment.",
+    };
+  }
+
+  // ── 6. The payment provider, BEFORE anything is reserved ────────────────
   // Resolved here rather than after the order is created, because it can
   // refuse: the mock deliberately will not load in production, and `real`
   // fails if the integration has not been deployed.
   //
-  // It used to be resolved further down, after createPendingOrder. That
-  // meant every attempt in a misconfigured deployment reserved seats for a
-  // payment that could never start, and held them for the full 30 minutes
-  // until the expiry job swept them up. A buyer pressing the button five
-  // times quietly locked five orders' worth of inventory, and the admin
-  // order list filled with PENDING rows that had never been payable.
+  // It used to be resolved after createPendingOrder. That meant every
+  // attempt in a deployment without a payment integration reserved seats
+  // for a payment that could never start, and held them for the full 30
+  // minutes until the expiry job swept them up. A buyer pressing the button
+  // five times quietly locked five orders' worth of inventory, and the
+  // admin order list filled with PENDING rows that had never been payable.
+  //
+  // Seats are the thing worth protecting here. A name is not.
   let paymentService: PaymentService;
   try {
     paymentService = await getPaymentService();
@@ -108,17 +133,15 @@ export async function createOrderAction(rawInput: unknown): Promise<CreateOrderR
     };
   }
 
-  // ── 6. Attendee, then the order ─────────────────────────────────────────
+  // ── 7. The order, which is what actually holds the seats ────────────────
   try {
-    const attendeeId = await upsertAttendee(details);
-
     const order = await createPendingOrder({
       eventId: event.id,
       attendeeId,
       items,
     });
 
-    // ── 7. Hand off to the payment provider ────────────────────────────
+    // ── 8. Hand off to the payment provider ────────────────────────────
     // The order exists and its seats are held. Everything from here is the
     // payment developer's side of the boundary; we only need a URL.
     let redirectUrl: string;
