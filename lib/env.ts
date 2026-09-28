@@ -1,70 +1,30 @@
 import "server-only";
 
-import { z } from "zod";
+import { parseEnv, type ServerEnv } from "@/lib/envSchema";
 
 /**
- * Server environment.
+ * The server environment, parsed once at startup.
  *
- * Every variable the project will ever need is declared here, but variables
- * belonging to a later phase are OPTIONAL — the app must boot today with an
- * empty .env.local. Each service validates its own requirements when it is
- * actually used (see `requireSupabaseEnv()` etc. below), so a missing key
- * produces a readable message at the point of use instead of a blank screen.
- *
- * NEVER import this from a client component. `server-only` makes that a build
+ * The schema and the parsing rules live in `lib/envSchema.ts` so they can
+ * be unit-tested; this module is the one that actually holds the values,
+ * and `server-only` makes importing it from a client component a build
  * error rather than a leaked secret.
  */
 
-const optionalNonEmpty = z
-  .string()
-  .trim()
-  .min(1)
-  .optional()
-  // Treat an empty .env value ("FOO=") the same as an absent one.
-  .or(z.literal("").transform(() => undefined));
-
-const serverSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-
-  // ── Phase 2: Supabase ──────────────────────────────────────────────────
-  NEXT_PUBLIC_SUPABASE_URL: optionalNonEmpty,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: optionalNonEmpty,
-  /** SERVER ONLY. Bypasses Row Level Security. Never expose to the browser. */
-  SUPABASE_SERVICE_ROLE_KEY: optionalNonEmpty,
-
-  // ── Phase 4: bot protection ────────────────────────────────────────────
-  /** Blank = Turnstile disabled, which is the correct local-dev default. */
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: optionalNonEmpty,
-  TURNSTILE_SECRET_KEY: optionalNonEmpty,
-
-  // ── Phase 5: payment boundary ──────────────────────────────────────────
-  NEXT_PUBLIC_SITE_URL: optionalNonEmpty,
-  PAYMENT_PROVIDER: z.enum(["mock", "real"]).default("mock"),
-  /** HMAC-SHA256 key for the X-Signature header on /api/payments/confirm. */
-  PAYMENT_CONFIRM_SECRET: optionalNonEmpty,
-
-  // ── Phase 6: email ─────────────────────────────────────────────────────
-  EMAIL_PROVIDER: z.enum(["console", "resend"]).default("console"),
-  RESEND_API_KEY: optionalNonEmpty,
-  EMAIL_FROM: optionalNonEmpty,
-});
-
-export type ServerEnv = z.infer<typeof serverSchema>;
+export type { ServerEnv };
 
 function loadEnv(): ServerEnv {
-  const parsed = serverSchema.safeParse(process.env);
+  const result = parseEnv(process.env);
 
-  if (!parsed.success) {
-    const problems = parsed.error.issues
-      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-      .join("\n");
-    throw new Error(
-      `Invalid environment configuration:\n${problems}\n\n` +
-        `Copy .env.example to .env.local and fill in the values for the phase you are working on.`,
-    );
+  if (!result.ok) {
+    // Printed as well as thrown. A failing build surfaces this as a code
+    // frame around the `throw`, which shows the source line but not always
+    // the message — and the message is the only part that says what to fix.
+    console.error(`\n${result.message}\n`);
+    throw new Error(result.message);
   }
 
-  return parsed.data;
+  return result.env;
 }
 
 export const env: ServerEnv = loadEnv();
