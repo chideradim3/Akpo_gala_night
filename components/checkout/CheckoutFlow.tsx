@@ -78,6 +78,8 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  // Null until the bot check passes, and again once the token expires.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   function goToStep(next: 1 | 2) {
     setFormError(null);
@@ -120,6 +122,9 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
           consent: details.consent,
         },
         items,
+        // Undefined when Turnstile is not configured, which is exactly
+        // what the server expects in that case.
+        turnstileToken: turnstileToken ?? undefined,
       });
 
       if (result.ok) {
@@ -163,6 +168,7 @@ export function CheckoutFlow({ tiers }: { tiers: TicketTier[] }) {
                 setErrors({});
               }}
               onSubmit={handleDetailsSubmit}
+              onTurnstileToken={setTurnstileToken}
             />
           ) : (
             <SelectTicketsStep

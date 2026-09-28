@@ -56,6 +56,20 @@ const supabaseOrigin = (() => {
   }
 })();
 
+/**
+ * Cloudflare Turnstile needs its script and its iframe allowed.
+ *
+ * Added ONLY when a site key is configured, so a deployment without bot
+ * protection does not carry a permission it never uses. The widget is
+ * served from this origin and renders inside an iframe from it, so both
+ * script-src and frame-src are required — miss either and the check
+ * silently fails to appear, which with the server failing closed would
+ * reject every order.
+ */
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
+const turnstileEnabled = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+const turnstileSrc = turnstileEnabled ? ` ${TURNSTILE_ORIGIN}` : "";
+
 const connectSrc = supabaseOrigin
   ? `'self' ${supabaseOrigin} ${supabaseOrigin.replace(/^https:/, "wss:")}`
   : "'self' https: wss:";
@@ -67,7 +81,7 @@ const imgSrc = supabaseOrigin
 const contentSecurityPolicy = [
   "default-src 'self'",
   // 'unsafe-eval' is needed by the dev-mode React refresh runtime only.
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${turnstileSrc}`,
   "style-src 'self' 'unsafe-inline'",
   // data: for the inline QR codes, blob: for uploads in progress, and the
   // Supabase origin for images stored there. Not all of https.
@@ -83,6 +97,9 @@ const contentSecurityPolicy = [
   // pages to measure them at widths headless Chrome refuses to give.
   // Other origins are still refused either way.
   `frame-ancestors ${isDev ? "'self'" : "'none'"}`,
+  // What THIS page may frame — distinct from frame-ancestors, which is who
+  // may frame us. Only the Turnstile widget, and only when it is in use.
+  `frame-src 'self'${turnstileSrc}`,
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",

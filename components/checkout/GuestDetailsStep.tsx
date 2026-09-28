@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { TurnstileWidget } from "@/components/checkout/TurnstileWidget";
 import { Button, Checkbox, Input } from "@/components/ui";
 
 /**
@@ -37,11 +38,13 @@ export function GuestDetailsStep({
   errors,
   onChange,
   onSubmit,
+  onTurnstileToken,
 }: {
   values: GuestDetailsValues;
   errors: Record<string, string>;
   onChange: (patch: Partial<GuestDetailsValues>) => void;
   onSubmit: () => void;
+  onTurnstileToken: (token: string | null) => void;
 }) {
   return (
     <form
@@ -142,6 +145,9 @@ export function GuestDetailsStep({
           }
         />
       </div>
+
+      {/* Renders nothing unless a Turnstile site key is configured. */}
+      <TurnstileWidget onToken={onTurnstileToken} />
 
       <Button type="submit" size="lg" fullWidth>
         Continue to tickets
