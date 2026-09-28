@@ -85,6 +85,7 @@ Then open <http://localhost:3000>.
 | `npm run db:seed` | Apply the sample event |
 | `npm run db:status` | Show which migrations are applied |
 | `npm run test:db` | Inventory race + RLS tests (needs local Supabase) |
+| `npm run test:checkout` | Drives a browser through checkout and checks what was written (needs local Supabase) |
 | `npm run create-admin -- --email you@example.com --role owner` | Create an administrator |
 | `npm run simulate-payment -- --ref GALA-1042 --amount 500000` | Send a signed fake payment confirmation |
 | `npm run test-email -- --to you@example.com` | Check that email sending is configured |
@@ -210,8 +211,19 @@ call was briefly slow, which is a mistake this project made once already.
 Locally, before anything important:
 
 ```bash
-npm run audit      # security invariants + responsive layout
-npm run test:db    # inventory race + Row Level Security (needs local Supabase)
+npm run audit         # security invariants + responsive layout
+npm run test:db       # inventory race + Row Level Security (needs local Supabase)
+npm run test:checkout # the real checkout, end to end (needs local Supabase)
+```
+
+`test:checkout` needs a server running in **production mode** against a throwaway
+database, because that is the only place some failures appear — in development the
+mock payment provider succeeds, so the path where it refuses never executes:
+
+```bash
+npx supabase start && npx supabase db reset
+npm run build && npx next start -p 3100      # with the local Supabase keys
+npm run test:checkout
 ```
 
 ---
