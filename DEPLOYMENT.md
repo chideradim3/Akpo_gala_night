@@ -95,11 +95,17 @@ If the build fails, read the log — it names the missing variable.
 **Checkout stops at "Continue to payment".**
 
 With `PAYMENT_PROVIDER=mock`, the code *deliberately refuses* to run the fake payment system in
-production — a mock must never be able to take money. The buyer sees "we could not reach the
-payment provider" and their seats are released after 30 minutes.
+production — a mock must never be able to take money. The buyer sees:
+
+> Online payment is not available on this site yet. Nothing has been reserved and you have not
+> been charged.
 
 That is correct behaviour, not a broken deploy. It resolves when the payment integration is built
 and you set `PAYMENT_PROVIDER=real`.
+
+**To try the full purchase flow**, run it locally — `npm run dev`, then `npm run simulate-payment`.
+The mock works there, tickets are issued, and the QR pages render. It cannot be made to work on a
+deployed site, by design.
 
 **No emails are sent.** With `EMAIL_PROVIDER=console` they are written to a file on the server,
 where you cannot see them. Tickets are still issued and still reachable at

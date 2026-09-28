@@ -6,7 +6,7 @@ import { checkRateLimit, clientIpFrom } from "@/lib/rateLimit";
 import { getPublishedEvent } from "@/lib/services/events";
 import { upsertAttendee } from "@/lib/services/attendees";
 import { createPendingOrder, OrderCreationError } from "@/lib/services/orders";
-import { buildReturnUrl, getPaymentService } from "@/lib/services/payment";
+import { buildReturnUrl, getPaymentService, type PaymentService } from "@/lib/services/payment";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createOrderSchema, fieldErrors } from "@/lib/validation/checkout";
 
@@ -83,7 +83,32 @@ export async function createOrderAction(rawInput: unknown): Promise<CreateOrderR
     return { ok: false, message: "Tickets are not on sale at the moment." };
   }
 
-  // ── 5. Attendee, then the order ─────────────────────────────────────────
+  // ── 5. The payment provider, BEFORE anything is reserved ────────────────
+  // Resolved here rather than after the order is created, because it can
+  // refuse: the mock deliberately will not load in production, and `real`
+  // fails if the integration has not been deployed.
+  //
+  // It used to be resolved further down, after createPendingOrder. That
+  // meant every attempt in a misconfigured deployment reserved seats for a
+  // payment that could never start, and held them for the full 30 minutes
+  // until the expiry job swept them up. A buyer pressing the button five
+  // times quietly locked five orders' worth of inventory, and the admin
+  // order list filled with PENDING rows that had never been payable.
+  let paymentService: PaymentService;
+  try {
+    paymentService = await getPaymentService();
+  } catch (error) {
+    // The detail names the variable to change; the buyer gets none of it.
+    console.error("[checkout] no usable payment provider", error);
+    return {
+      ok: false,
+      message:
+        "Online payment is not available on this site yet. Nothing has been " +
+        "reserved and you have not been charged.",
+    };
+  }
+
+  // ── 6. Attendee, then the order ─────────────────────────────────────────
   try {
     const attendeeId = await upsertAttendee(details);
 
@@ -93,11 +118,9 @@ export async function createOrderAction(rawInput: unknown): Promise<CreateOrderR
       items,
     });
 
-    // ── 6. Hand off to the payment provider ────────────────────────────
+    // ── 7. Hand off to the payment provider ────────────────────────────
     // The order exists and its seats are held. Everything from here is the
     // payment developer's side of the boundary; we only need a URL.
-    const paymentService = await getPaymentService();
-
     let redirectUrl: string;
     try {
       const started = await paymentService.startPayment({
