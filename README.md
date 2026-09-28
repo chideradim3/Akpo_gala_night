@@ -59,6 +59,12 @@ Use **`npm ci`** rather than `npm install` when you just want the project runnin
 exactly what `package-lock.json` records, so dependencies cannot shift underneath you. Save
 `npm install` for when you are deliberately adding or updating a package.
 
+**On Vercel**, the version comes from `engines.node` in `package.json`, which overrides whatever
+the dashboard says — so it is pinned to `22.x` rather than a range. An open range such as
+`>=22.0.0` resolves to the newest version Vercel offers, which is currently 24: production would
+quietly run a major version nobody has tested on. `.nvmrc` is for local tooling only; Vercel does
+not read it.
+
 ```bash
 npm install
 cp .env.example .env.local     # nothing needs filling in yet

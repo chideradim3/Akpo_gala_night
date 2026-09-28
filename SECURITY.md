@@ -113,7 +113,7 @@ handled.
 - [ ] A **separate Supabase project** for production, so test orders never mix with real ones
 - [ ] Sample data removed and the real event published
 - [ ] At least two owner accounts, so losing one phone does not lock you out
-- [ ] Vercel's Node version set to 22, matching `.nvmrc` — it is a project setting, not read from the repo
+- [ ] `PAYMENT_PROVIDER=real`. With `mock`, the checkout throws at the payment step in production — deliberately, so the mock can never take money
 - [ ] `npm run audit` passes
 - [ ] A real purchase made end to end on the production site, with a real card
 
