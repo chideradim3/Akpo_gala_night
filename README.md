@@ -43,7 +43,19 @@ library or a payment SDK.
 
 ## Running it locally
 
-You need **Node.js 20.9 or newer**.
+### Node version
+
+You need **Node.js 22 or newer**.
+
+`@supabase/supabase-js` declares `engines: node >= 22`, and it means it: outside Next.js,
+`createClient()` throws on Node 20 because it wants a WebSocket that only Node 22 provides. The
+app itself still runs on Node 20 today — Next.js supplies that WebSocket — but you are relying on
+a polyfill to paper over an unmet requirement, and any patch release of the library could stop
+that working.
+
+`package.json` and `.nvmrc` both declare 22, so `npm install` warns until you upgrade. Download
+the LTS installer from [nodejs.org](https://nodejs.org), run it, reopen your terminal, and check
+with `node --version`. Nothing in this project needs changing.
 
 ```bash
 npm install

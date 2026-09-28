@@ -96,6 +96,18 @@ Flagging an order for refund records that money is owed. It does not move
 any. Somebody must refund it in the payment provider and then mark it
 handled.
 
+### Node 20 is below what the Supabase client requires
+
+`@supabase/supabase-js` declares `engines: node >= 22`. The app runs on Node 20 only because
+Next.js polyfills the WebSocket the library expects; a plain Node script using the same library
+already throws.
+
+Nothing is broken today, but an unmet engine requirement is a dependency waiting to break on a
+routine `npm install`, and Vercel now defaults to Node 22 — so production and a Node 20 laptop are
+running different runtimes, which is how bugs hide.
+
+**To fix:** install Node 22 LTS. `package.json` and `.nvmrc` already declare it.
+
 ### The payment integration is not written yet
 
 `lib/services/payment/real.ts` is a skeleton. Until it exists,
@@ -113,6 +125,7 @@ handled.
 - [ ] A **separate Supabase project** for production, so test orders never mix with real ones
 - [ ] Sample data removed and the real event published
 - [ ] At least two owner accounts, so losing one phone does not lock you out
+- [ ] Running Node 22, locally and in production, so both match
 - [ ] `npm run audit` passes
 - [ ] A real purchase made end to end on the production site, with a real card
 
