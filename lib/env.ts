@@ -40,9 +40,17 @@ export function requireSupabaseEnv() {
   const url = env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) {
+    const missing = [
+      url ? null : "NEXT_PUBLIC_SUPABASE_URL",
+      anonKey ? null : "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    ]
+      .filter(Boolean)
+      .join(", ");
     throw new Error(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and " +
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local — see SUPABASE_SETUP.md.",
+      `Supabase is not configured: ${missing} is missing. ` +
+        `Locally, set it in .env.local — see SUPABASE_SETUP.md. ` +
+        `On Vercel, set it in Settings -> Environment Variables and make sure ` +
+        `the Production environment is ticked, then redeploy.`,
     );
   }
   return { url, anonKey };
@@ -54,7 +62,11 @@ export function requireServiceRoleKey(): string {
   if (!key) {
     throw new Error(
       "SUPABASE_SERVICE_ROLE_KEY is not set. It is required for server-side " +
-        "writes. See SUPABASE_SETUP.md. Never put this key in a NEXT_PUBLIC_ variable.",
+        "reads and writes, including the availability counts the landing page " +
+        "is built from. Locally, set it in .env.local — see SUPABASE_SETUP.md. " +
+        "On Vercel, set it in Settings -> Environment Variables with the " +
+        "Production environment ticked, then redeploy. " +
+        "Never put this key in a NEXT_PUBLIC_ variable.",
     );
   }
   return key;

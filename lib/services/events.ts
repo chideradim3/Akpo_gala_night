@@ -133,11 +133,20 @@ function saleWindowState(
  * "which event?" parameter anywhere in the public flow.
  */
 export async function getPublishedEvent(): Promise<GalaEvent | null> {
-  // Anon client: RLS only ever returns a PUBLISHED event, so the filter below
-  // is a second lock rather than the only one.
-  const supabase = createPublicSupabaseClient();
-
   try {
+    // Anon client: RLS only ever returns a PUBLISHED event, so the filter
+    // below is a second lock rather than the only one.
+    //
+    // Created INSIDE the try. It used to sit above it, so that a missing
+    // key would fail loudly while a network blip degraded quietly. That
+    // distinction was the right instinct applied in the wrong place: this
+    // page is prerendered at build time, so "fail loudly" meant the whole
+    // deployment aborted, and the only way to see the message was to read
+    // the build log. A misconfigured site now ships and says "check back
+    // soon" on the landing page, which is louder to the person who needs
+    // to know and cheaper to fix.
+    const supabase = createPublicSupabaseClient();
+
     const { data, error } = await supabase
       .from("events")
       .select("*")
@@ -167,6 +176,7 @@ export async function getPublishedEvent(): Promise<GalaEvent | null> {
   }
 }
 
+
 /**
  * Active tiers for an event, each with live availability.
  *
@@ -180,23 +190,32 @@ export async function getPublishedEvent(): Promise<GalaEvent | null> {
  * is the only place that can actually oversell.
  */
 export async function getTicketTiers(eventId: string): Promise<TicketTier[]> {
-  // Tier details: anon client, so RLS hides inactive tiers and tiers of an
-  // unpublished event.
-  const publicClient = createPublicSupabaseClient();
-  // Availability: must be the service role. Working out what is left means
-  // counting orders, which anon cannot read — by design. The function returns
-  // only counts, never any order or attendee data.
-  const adminClient = createAdminSupabaseClient();
+  // Both clients are created inside the try, for the reason set out in
+  // getPublishedEvent: a missing key must not abort the build.
+  let typesResult;
+  let availabilityResult;
+  try {
+    // Tier details: anon client, so RLS hides inactive tiers and tiers of an
+    // unpublished event.
+    const publicClient = createPublicSupabaseClient();
+    // Availability: must be the service role. Working out what is left means
+    // counting orders, which anon cannot read — by design. The function
+    // returns only counts, never any order or attendee data.
+    const adminClient = createAdminSupabaseClient();
 
-  const [typesResult, availabilityResult] = await Promise.all([
-    publicClient
-      .from("ticket_types")
-      .select("*")
-      .eq("event_id", eventId)
-      .eq("is_active", true)
-      .order("sort_order", { ascending: true }),
-    adminClient.rpc("event_ticket_availability", { p_event_id: eventId }),
-  ]);
+    [typesResult, availabilityResult] = await Promise.all([
+      publicClient
+        .from("ticket_types")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
+      adminClient.rpc("event_ticket_availability", { p_event_id: eventId }),
+    ]);
+  } catch (error) {
+    console.error("[events] could not reach Supabase for ticket types", error);
+    return [];
+  }
 
   // Same reasoning as getPublishedEvent: an empty tier list renders
   // "nothing on sale right now", which is survivable. A thrown error during
