@@ -5,9 +5,13 @@ A ticket sales website for a Gala Night in Nigeria, with an admin dashboard. Cur
 Payment integration and the venue check-in page are built separately by the payment developer —
 see [What this repository does NOT build](#what-this-repository-does-not-build).
 
-**Current status: Phase 9 complete** — the site sells tickets end to end. Landing page, checkout with
-atomic inventory reservation, the payment boundary, ticket issuance with QR codes, ticket emails,
-lost-ticket recovery, and an admin dashboard behind mandatory two-factor authentication.
+**Status: all ten phases built and verified.** The site sells tickets end to end — landing page,
+checkout with atomic inventory reservation, the payment boundary, ticket issuance with QR codes,
+ticket emails, lost-ticket recovery, and an admin dashboard behind mandatory two-factor
+authentication.
+
+Three things still need something from outside the code before you can take real money — see
+[What is not finished](#what-is-not-finished).
 
 ---
 
@@ -173,7 +177,7 @@ page, button or redirect may do it. The payment return page is read-only.
 Do not install Paystack, Stripe, Flutterwave or any other provider SDK.
 
 **2. The venue check-in page and QR scanner** at `/admin/check-in` — see
-`CHECK_IN_INTEGRATION.md` (written in Phase 10).
+[CHECK_IN_INTEGRATION.md](CHECK_IN_INTEGRATION.md).
 
 We *do* build everything it depends on: the `tickets` table with `qr_token`, `ticket_code`,
 `status`, `checked_in_at` and `checked_in_by`; the `requireAdmin('staff')` helper it protects
@@ -289,6 +293,21 @@ Each phase stops for review before the next one starts.
 | 7 | Admin auth with 2FA, overview dashboard | ✅ done |
 | 8 | Admin ticket types, orders, attendees, settings, CSV export | next |
 | 9 | Security review and responsive polish | ✅ done |
-| 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | next |
+| 10 | README, PAYMENT_INTEGRATION.md, CHECK_IN_INTEGRATION.md, final test run | ✅ done |
 
 The full specification is in [`gala_prompt.MD`](gala_prompt.MD).
+
+---
+
+## What is not finished
+
+Three things are deliberately outstanding, all needing something from outside the code:
+
+| | Needs |
+|---|---|
+| **Real emails** | A domain and a Resend key. Until then tickets are written to `.mail/` instead of sent — see [Turning on real emails](#turning-on-real-emails) |
+| **Payment** | The provider integration, per [PAYMENT_INTEGRATION.md](PAYMENT_INTEGRATION.md). `PAYMENT_PROVIDER=mock` until then |
+| **Check-in** | The door scanner, per [CHECK_IN_INTEGRATION.md](CHECK_IN_INTEGRATION.md) |
+
+Bot protection is wired in but switched off for want of Cloudflare Turnstile keys.
+[SECURITY.md](SECURITY.md) lists that and the rest of the pre-launch checklist.
