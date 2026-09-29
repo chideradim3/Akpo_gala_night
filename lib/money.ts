@@ -119,6 +119,47 @@ export function formatNaira(amount: Kobo): string {
   return formatter.format(koboToNaira(amount)).replace(/^NGN\s?/, "\u20a6");
 }
 
+/**
+ * Format kobo in short form, for the landing page only.
+ *
+ *     formatNairaShort(100_000_000_000) -> "₦1M"       (₦1,000,000)
+ *     formatNairaShort(50_000_000)      -> "₦500K"     (₦500,000)
+ *     formatNairaShort(2_000_000)       -> "₦20K"      (₦20,000)
+ *     formatNairaShort(300_000)         -> "₦3K"       (₦3,000)
+ *     formatNairaShort(150_000_000_000) -> "₦1.5M"     (₦1,500,000)
+ *     formatNairaShort(50_000)          -> "₦500"      (below 1,000: unchanged)
+ *
+ * ── WHERE THIS MAY BE USED ──────────────────────────────────────────────
+ * The landing page, and nowhere else. It is an advertisement of roughly
+ * what a ticket costs, so "₦1M" reads better than "₦1,000,000" on a card
+ * skimmed on a phone.
+ *
+ * Everywhere a buyer is deciding or confirming what to pay — the ticket
+ * selection step, the order summary and total, the payment return page,
+ * the ticket pages, the emails and the whole admin area — keeps
+ * `formatNaira`, because an abbreviated price is an approximate one, and
+ * nobody should agree to a number that has been rounded for looks.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * One decimal place at most, and never a trailing zero: ₦1.5M, not ₦1.0M.
+ * Amounts below ₦1,000 are shown in full, since "₦0.5K" helps no one.
+ */
+export function formatNairaShort(amount: Kobo): string {
+  const naira = koboToNaira(amount);
+
+  if (naira < 1_000) return formatNaira(amount);
+
+  const [divisor, suffix] = naira >= 1_000_000 ? [1_000_000, "M"] : [1_000, "K"];
+
+  // One decimal, then drop it when it is zero. Truncated rather than
+  // rounded, so a short price is never higher than the real one — ₦1.99M
+  // must not advertise itself as ₦2M.
+  const scaled = Math.floor((naira / divisor) * 10) / 10;
+  const text = Number.isInteger(scaled) ? String(scaled) : scaled.toFixed(1);
+
+  return `₦${text}${suffix}`;
+}
+
 /** Add kobo amounts. Integer arithmetic only. */
 export function sumKobo(...amounts: Kobo[]): Kobo {
   return kobo(amounts.reduce<number>((total, amount) => total + amount, 0));

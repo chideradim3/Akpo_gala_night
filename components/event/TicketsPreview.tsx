@@ -1,6 +1,6 @@
 import { Section } from "@/components/event/Section";
 import { Badge, ButtonLink, Card, CardBody, EmptyState } from "@/components/ui";
-import { formatNaira } from "@/lib/money";
+import { formatNairaShort } from "@/lib/money";
 import type { TicketTier } from "@/lib/services/events";
 
 /**
@@ -49,7 +49,7 @@ function TierCard({ tier }: { tier: TicketTier }) {
         </div>
 
         <p className="tnum text-[length:var(--text-amount)] leading-none font-medium [font-family:var(--font-display)]">
-          {formatNaira(tier.priceKobo)}
+          {formatNairaShort(tier.priceKobo)}
         </p>
 
         {/* "Admits 10" is the single most important fact about a VIP table

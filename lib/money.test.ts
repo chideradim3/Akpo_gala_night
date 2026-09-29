@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   formatNaira,
+  formatNairaShort,
   kobo,
   koboToNaira,
   multiplyKobo,
@@ -59,6 +60,52 @@ describe("formatNaira", () => {
 
   it("shows the kobo part when there is one", () => {
     assert.equal(formatNaira(kobo(1_050)), "₦10.50");
+  });
+});
+
+describe("formatNairaShort", () => {
+  // The four examples the short form was asked for, written as Naira so
+  // the intent is readable, converted so the kobo rule still holds.
+  it("shortens the asked-for amounts", () => {
+    assert.equal(formatNairaShort(nairaToKobo(1_000_000)), "₦1M");
+    assert.equal(formatNairaShort(nairaToKobo(500_000)), "₦500K");
+    assert.equal(formatNairaShort(nairaToKobo(20_000)), "₦20K");
+    assert.equal(formatNairaShort(nairaToKobo(3_000)), "₦3K");
+  });
+
+  it("keeps one decimal where it says something", () => {
+    assert.equal(formatNairaShort(nairaToKobo(1_500_000)), "₦1.5M");
+    assert.equal(formatNairaShort(nairaToKobo(2_500)), "₦2.5K");
+  });
+
+  it("never shows a trailing .0", () => {
+    assert.equal(formatNairaShort(nairaToKobo(1_000_000)), "₦1M");
+    assert.equal(formatNairaShort(nairaToKobo(2_000_000)), "₦2M");
+    assert.equal(formatNairaShort(nairaToKobo(10_000)), "₦10K");
+  });
+
+  it("switches to M at exactly a million, and K at exactly a thousand", () => {
+    assert.equal(formatNairaShort(nairaToKobo(999_999)), "₦999.9K");
+    assert.equal(formatNairaShort(nairaToKobo(1_000_000)), "₦1M");
+    assert.equal(formatNairaShort(nairaToKobo(999)), "₦999");
+    assert.equal(formatNairaShort(nairaToKobo(1_000)), "₦1K");
+  });
+
+  it("shows amounts below a thousand in full", () => {
+    assert.equal(formatNairaShort(nairaToKobo(500)), "₦500");
+    assert.equal(formatNairaShort(kobo(0)), "₦0");
+  });
+
+  it("never rounds a price upwards", () => {
+    // ₦1,990,000 advertised as "₦2M" would be a higher price than the one
+    // actually charged. Truncating keeps the short form honest.
+    assert.equal(formatNairaShort(nairaToKobo(1_990_000)), "₦1.9M");
+    assert.equal(formatNairaShort(nairaToKobo(19_900)), "₦19.9K");
+  });
+
+  it("leaves formatNaira alone, which is what every other page uses", () => {
+    assert.equal(formatNaira(nairaToKobo(1_000_000)), "₦1,000,000");
+    assert.equal(formatNaira(nairaToKobo(20_000)), "₦20,000");
   });
 });
 

@@ -1,6 +1,6 @@
 import { ButtonLink, Container } from "@/components/ui";
 import { formatEventDate, formatEventTimeRange, formatVenue } from "@/lib/formatEvent";
-import { formatNaira } from "@/lib/money";
+import { formatNairaShort } from "@/lib/money";
 import type { GalaEvent, TicketTier } from "@/lib/services/events";
 import { cn } from "@/lib/utils";
 
@@ -50,9 +50,15 @@ export function Hero({ event, tiers }: { event: GalaEvent; tiers: TicketTier[] }
   const time = formatEventTimeRange(event);
   const venue = formatVenue(event);
 
-  const onSale = tiers.filter((tier) => tier.unavailableReason === null);
-  const lowestPrice = onSale.length
-    ? onSale.reduce((cheapest, tier) => (tier.priceKobo < cheapest ? tier.priceKobo : cheapest), onSale[0].priceKobo)
+  // The cheapest tier SHOWN on this page, whether or not it is on sale
+  // today — not the cheapest one currently buyable.
+  //
+  // Those differ whenever a tier is sold out or its sale window has closed,
+  // and the page lists every tier either way. Counting only the buyable ones
+  // meant the hero could say "From ₦5K" directly above a visible ₦3K card,
+  // which reads as a mistake to anyone scrolling past it.
+  const lowestPrice = tiers.length
+    ? tiers.reduce((cheapest, tier) => (tier.priceKobo < cheapest ? tier.priceKobo : cheapest), tiers[0].priceKobo)
     : null;
 
   const particulars = [
@@ -114,7 +120,7 @@ export function Hero({ event, tiers }: { event: GalaEvent; tiers: TicketTier[] }
             </ButtonLink>
             {lowestPrice !== null && (
               <p className="tnum text-sm text-[var(--color-ink-muted)]">
-                From {formatNaira(lowestPrice)}
+                From {formatNairaShort(lowestPrice)}
               </p>
             )}
           </div>
