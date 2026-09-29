@@ -32,6 +32,16 @@ type Draft = {
   saleEnd: string;
   sortOrder: string;
   isActive: boolean;
+  /**
+   * Carried through the form without being shown.
+   *
+   * There is no image input on this page yet, but the column exists and
+   * the save action writes whatever it is given. Leaving the field out of
+   * the payload entirely made every save fail validation, and defaulting
+   * it to null here instead would erase an image that had been set some
+   * other way. So it round-trips untouched.
+   */
+  imageUrl: string;
 };
 
 const BLANK: Draft = {
@@ -45,6 +55,7 @@ const BLANK: Draft = {
   saleEnd: "",
   sortOrder: "0",
   isActive: true,
+  imageUrl: "",
 };
 
 /** A timestamp from the database into what datetime-local expects. */
@@ -68,6 +79,7 @@ function toDraft(tier: AdminTicketType): Draft {
     saleEnd: toLocalInput(tier.saleEnd),
     sortOrder: String(tier.sortOrder),
     isActive: tier.isActive,
+    imageUrl: tier.imageUrl ?? "",
   };
 }
 
@@ -100,12 +112,39 @@ export function TicketTypeEditor({ tiers }: { tiers: AdminTicketType[] }) {
         saleEnd: editing.saleEnd,
         sortOrder: editing.sortOrder,
         isActive: editing.isActive,
+        imageUrl: editing.imageUrl,
       }),
     );
   }
 
   const fieldError = (name: string) =>
     result && !result.ok ? result.fields?.[name] : undefined;
+
+  /** The fields that actually have an input on this form. */
+  const SHOWN = [
+    "name",
+    "description",
+    "priceNaira",
+    "admits",
+    "inventory",
+    "maxPerOrder",
+    "saleStart",
+    "saleEnd",
+    "sortOrder",
+  ];
+
+  /**
+   * Validation errors with nowhere to appear.
+   *
+   * "Please check the fields below" is useless when the field at fault has
+   * no input — which is exactly what happened with imageUrl: every save
+   * failed, and the page highlighted nothing. Surfacing the orphans turns a
+   * dead end into something a person can report.
+   */
+  const orphanErrors =
+    result && !result.ok && result.fields
+      ? Object.entries(result.fields).filter(([key]) => !SHOWN.includes(key))
+      : [];
 
   return (
     <div className="space-y-5">
@@ -115,7 +154,17 @@ export function TicketTypeEditor({ tiers }: { tiers: AdminTicketType[] }) {
             {result.message}
           </p>
         ) : (
-          <ErrorMessage title={result.message} />
+          <ErrorMessage title={result.message}>
+            {orphanErrors.length > 0 && (
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {orphanErrors.map(([key, message]) => (
+                  <li key={key}>
+                    <code>{key}</code>: {message}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ErrorMessage>
         )
       )}
 

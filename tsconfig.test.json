@@ -20,6 +20,8 @@
     "lib/phone.test.ts",
     "lib/validation/checkout.ts",
     "lib/validation/checkout.test.ts",
+    "lib/validation/admin.ts",
+    "lib/validation/admin.test.ts",
     "lib/envSchema.ts",
     "lib/envSchema.test.ts"
   ]
