@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 
 import { About } from "@/components/event/About";
 import { Contact } from "@/components/event/Contact";
-import { DressCode } from "@/components/event/DressCode";
 import { Faq } from "@/components/event/Faq";
 import { Gallery } from "@/components/event/Gallery";
 import { Hero } from "@/components/event/Hero";
 import { Programme } from "@/components/event/Programme";
 import { SectionRule } from "@/components/event/Section";
+import { Sponsor } from "@/components/event/Sponsor";
 import { SiteFooter } from "@/components/event/SiteFooter";
 import { SiteHeader } from "@/components/event/SiteHeader";
 import { TicketsPreview } from "@/components/event/TicketsPreview";
@@ -87,7 +87,7 @@ export default async function HomePage() {
         <Programme event={event} />
         <Gallery event={event} />
         <TicketsPreview tiers={tiers} />
-        <DressCode event={event} />
+        <Sponsor />
         <Faq event={event} />
         <Contact event={event} />
       </main>
