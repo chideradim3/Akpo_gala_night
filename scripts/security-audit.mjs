@@ -13,7 +13,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 
 const ROOT = process.cwd();
@@ -206,7 +206,14 @@ const tracked = (() => {
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((line) => join(ROOT, line));
+      .map((line) => join(ROOT, line))
+      // `git ls-files` lists what git TRACKS, which still includes a file
+      // deleted from the working tree but not yet committed. Reading one
+      // threw ENOENT and killed the whole audit, so deleting any file
+      // blocked the audit until the deletion was committed — exactly when
+      // you most want to run it. A file that is gone has no contents to
+      // scan, so skipping it loses nothing.
+      .filter((file) => existsSync(file));
   } catch {
     console.log("  NOTE  not a git repository — falling back to scanning every file");
     return allFiles;
